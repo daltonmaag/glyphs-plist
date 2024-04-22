@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 /// An enum representing a property list.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Plist {
     Dictionary(HashMap<String, Plist>),
     Array(Vec<Plist>),
@@ -32,11 +32,20 @@ enum Token<'a> {
 }
 
 fn is_numeric(b: u8) -> bool {
-    (b >= b'0' && b <= b'9') || b == b'.' || b == b'-'
+    b.is_ascii_digit() || b == b'.' || b == b'-'
 }
 
 fn is_alnum(b: u8) -> bool {
-    is_numeric(b) || (b >= b'A' && b <= b'Z') || (b >= b'a' && b <= b'z') || b == b'_'
+    // https://github.com/opensource-apple/CF/blob/3cc41a76b1491f50813e28a4ec09954ffa359e6f/CFOldStylePList.c#L79
+    is_numeric(b)
+        || b.is_ascii_uppercase()
+        || b.is_ascii_lowercase()
+        || b == b'_'
+        || b == b'$'
+        || b == b'/'
+        || b == b':'
+        || b == b'.'
+        || b == b'-'
 }
 
 // Used for serialization; make sure UUID's get quoted
@@ -44,12 +53,8 @@ fn is_alnum_strict(b: u8) -> bool {
     is_alnum(b) && b != b'-'
 }
 
-fn is_ascii_digit(b: u8) -> bool {
-    b >= b'0' && b <= b'9'
-}
-
 fn is_hex_upper(b: u8) -> bool {
-    (b >= b'0' && b <= b'9') || (b >= b'A' && b <= b'F')
+    b.is_ascii_digit() || (b'A'..=b'F').contains(&b)
 }
 
 fn is_ascii_whitespace(b: u8) -> bool {
@@ -61,11 +66,11 @@ fn numeric_ok(s: &str) -> bool {
     if s.is_empty() {
         return false;
     }
-    if s.iter().all(|&b| is_hex_upper(b)) && !s.iter().all(|&b| is_ascii_digit(b)) {
+    if s.iter().all(|&b| is_hex_upper(b)) && !s.iter().all(|&b| b.is_ascii_digit()) {
         return false;
     }
     if s.len() > 1 && s[0] == b'0' {
-        return !s.iter().all(|&b| is_ascii_digit(b));
+        return !s.iter().all(|&b| b.is_ascii_digit());
     }
     true
 }
@@ -79,7 +84,16 @@ fn skip_ws(s: &str, mut ix: usize) -> usize {
 
 fn escape_string(buf: &mut String, s: &str) {
     if !s.is_empty() && s.as_bytes().iter().all(|&b| is_alnum_strict(b)) {
-        buf.push_str(s);
+        // Strings can drop quotation marks if they're alphanumeric, but not if
+        // they look like numbers.
+        match s.parse::<f64>() {
+            Ok(_) => {
+                buf.push('"');
+                buf.push_str(s);
+                buf.push('"');
+            }
+            Err(_) => buf.push_str(s),
+        }
     } else {
         buf.push('"');
         let mut start = 0;
@@ -98,6 +112,14 @@ fn escape_string(buf: &mut String, s: &str) {
         }
         buf.push_str(&s[start..]);
         buf.push('"');
+    }
+}
+
+impl std::fmt::Display for Plist {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut s = String::new();
+        self.push_to_string(&mut s);
+        write!(f, "{s}")
     }
 }
 
@@ -236,16 +258,10 @@ impl Plist {
         Plist::String(s.into())
     }
 
-    pub fn to_string(&self) -> String {
-        let mut s = String::new();
-        self.push_to_string(&mut s);
-        s
-    }
-
     fn push_to_string(&self, s: &mut String) {
         match self {
             Plist::Array(a) => {
-                s.push_str("(");
+                s.push('(');
                 let mut delim = "\n";
                 for el in a {
                     s.push_str(delim);
@@ -266,7 +282,7 @@ impl Plist {
                     el.push_to_string(s);
                     s.push_str(";\n");
                 }
-                s.push_str("}");
+                s.push('}');
             }
             Plist::String(st) => escape_string(s, st),
             Plist::Integer(i) => {
@@ -324,11 +340,13 @@ impl<'a> Token<'a> {
                                     cow_start = ix + 1;
                                 }
                                 _ => {
-                                    if b >= b'0' && b <= b'3' && ix + 2 < s.len() {
+                                    if (b'0'..=b'3').contains(&b) && ix + 2 < s.len() {
                                         // octal escape
                                         let b1 = s.as_bytes()[ix + 1];
                                         let b2 = s.as_bytes()[ix + 2];
-                                        if b1 >= b'0' && b1 <= b'7' && b2 >= b'0' && b2 <= b'7' {
+                                        if (b'0'..=b'7').contains(&b1)
+                                            && (b'0'..=b'7').contains(&b2)
+                                        {
                                             let oct =
                                                 (b - b'0') * 64 + (b1 - b'0') * 8 + (b2 - b'0');
                                             buf.push(oct as char);
@@ -413,5 +431,84 @@ impl From<Vec<Plist>> for Plist {
 impl From<HashMap<String, Plist>> for Plist {
     fn from(x: HashMap<String, Plist>) -> Plist {
         Plist::Dictionary(x)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Plist;
+
+    use maplit::hashmap;
+    use proptest::prelude::*;
+
+    #[test]
+    fn quoting() {
+        let contents = r#"
+        {
+            name = "UFO Filename";
+            value1 = ../../build/instance_ufos/Testing_Rg.ufo;
+            value2 = _;
+            value3 = $;
+            value4 = /;
+            value5 = :;
+            value6 = .;
+            value7 = -;
+        }
+        "#;
+
+        let plist = Plist::parse(contents).unwrap();
+        let plist_expected = Plist::Dictionary(hashmap! {
+            "name".into() => String::from("UFO Filename").into(),
+            "value1".into() => String::from("../../build/instance_ufos/Testing_Rg.ufo").into(),
+            "value2".into() => String::from("_").into(),
+            "value3".into() => String::from("$").into(),
+            "value4".into() => String::from("/").into(),
+            "value5".into() => String::from(":").into(),
+            "value6".into() => String::from(".").into(),
+            "value7".into() => String::from("-").into(),
+        });
+        assert_eq!(plist, plist_expected);
+    }
+
+    proptest! {
+        #[test]
+        fn escape_strings_float(num in proptest::num::f64::ANY) {
+            let mut buf = String::new();
+            let num_str = format!("{}", num);
+            escape_string(&mut buf, &num_str);
+
+            assert_eq!(buf, format!("\"{}\"", num_str));
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn escape_strings_int(num in proptest::num::i64::ANY) {
+            let mut buf = String::new();
+            let num_str = format!("{}", num);
+            escape_string(&mut buf, &num_str);
+
+            assert_eq!(buf, format!("\"{}\"", num_str));
+        }
+    }
+
+    #[test]
+    fn escape_strings_inf() {
+        let mut buf = String::new();
+        escape_string(&mut buf, "inf");
+        assert_eq!(buf, "\"inf\"");
+
+        buf.clear();
+        escape_string(&mut buf, "-inf");
+        assert_eq!(buf, "\"-inf\"");
+
+        buf.clear();
+        escape_string(&mut buf, "infinity");
+        assert_eq!(buf, "\"infinity\"");
+
+        buf.clear();
+        escape_string(&mut buf, "-infinity");
+        assert_eq!(buf, "\"-infinity\"");
     }
 }

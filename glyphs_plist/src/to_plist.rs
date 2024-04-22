@@ -1,4 +1,4 @@
-pub use plist_derive::ToPlist;
+pub use glyphs_plist_derive::ToPlist;
 
 use crate::plist::Plist;
 
@@ -8,6 +8,12 @@ pub trait ToPlist {
 
 pub trait ToPlistOpt {
     fn to_plist(self) -> Option<Plist>;
+}
+
+impl ToPlist for Plist {
+    fn to_plist(self) -> Plist {
+        self
+    }
 }
 
 impl ToPlist for String {

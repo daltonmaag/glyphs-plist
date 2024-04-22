@@ -1,18 +1,17 @@
 [package]
-name = "glyphstool"
+name = "glyphs_plist"
 version = "0.1.0"
 license = "MIT/Apache-2.0"
 authors = ["Raph Levien <raph.levien@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[[bin]]
-name = "glyphstool"
-
 [dependencies]
-kurbo = "0.5.1"
-plist_derive = { path = "plist_derive" }
+glyphs_plist_derive = { path = "../glyphs_plist_derive" }
+kurbo = "0.11"
+norad = { version = "0.14", features = ["kurbo"] }
 
-# This dep is used for the binary, not the lib, but oh well.
-structopt = "0.3.2"
+[dev-dependencies]
+maplit = "1.0.2"
+proptest = "1.0.0"

@@ -1,16 +1,7 @@
-# interp-toy
+# glyphs_plist
 
-This repo contains a Druid-based GUI application for experimenting with sparse interpolation.
+A Rust reader and writer library for [Glyphs.app](https://www.glyphsapp.com) files, based on the [original code from Raph Levien](https://github.com/raphlinus/interp-toy/tree/main/glyphstool).
 
-As a subdirectory, it contains a copy of the glyphstool crate, for which the authoritative master lives in the [Inconsolata] repository. It's used for reading masters in Glyphs format. If development continues, that should probably be published as a crate.
-
-To try it, run this command:
-
-```
-cargo run --release -- glyph testfont-2masters.glyphs n
-```
-
-This repo is currently a rough prototype, and uses an old version of [Druid]. It's likely the ideas will be pursued in a different context, for example adding interpolation features to [Runebender].
 
 ## License
 
@@ -19,7 +10,3 @@ Licensed under either of
     http://www.apache.org/licenses/LICENSE-2.0)
   * MIT license ([LICENSE-MIT](LICENSE-MIT) or
     http://opensource.org/licenses/MIT) at your option.
-
-[Inconsolata]: https://github.com/googlefonts/Inconsolata
-[Druid]: https://github.com/linebender/druid
-[Runebender]: https://runebender.app

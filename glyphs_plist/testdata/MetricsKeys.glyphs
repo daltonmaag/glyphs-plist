@@ -1,0 +1,79 @@
+{
+.appVersion = "3151";
+date = "2024-04-22 10:49:29 +0000";
+familyName = "New Font";
+fontMaster = (
+{
+alignmentZones = (
+"{800, 16}",
+"{0, -16}",
+"{-200, -16}"
+);
+ascender = 800;
+capHeight = 0;
+descender = -200;
+id = m01;
+xHeight = 0;
+}
+);
+glyphs = (
+{
+glyphname = A;
+layers = (
+{
+layerId = m01;
+width = 600;
+}
+);
+unicode = 0041;
+},
+{
+glyphname = o;
+layers = (
+{
+layerId = m01;
+width = 600;
+}
+);
+unicode = 006F;
+},
+{
+glyphname = Alphatonos;
+lastChange = "2024-04-22 10:50:42 +0000";
+layers = (
+{
+layerId = m01;
+width = 600;
+}
+);
+widthMetricsKey = A;
+rightMetricsKey = A;
+unicode = 0386;
+},
+{
+glyphname = space;
+layers = (
+{
+layerId = m01;
+width = 200;
+}
+);
+unicode = 0020;
+},
+{
+glyphname = ef;
+lastChange = "2024-04-22 10:50:50 +0000";
+layers = (
+{
+layerId = m01;
+width = 600;
+}
+);
+leftMetricsKey = o;
+rightMetricsKey = o;
+}
+);
+unitsPerEm = 1000;
+versionMajor = 1;
+versionMinor = 0;
+}

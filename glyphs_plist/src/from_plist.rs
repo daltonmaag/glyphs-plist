@@ -1,4 +1,4 @@
-pub use plist_derive::FromPlist;
+pub use glyphs_plist_derive::FromPlist;
 
 use crate::plist::Plist;
 
@@ -10,6 +10,12 @@ pub trait FromPlist {
 pub trait FromPlistOpt {
     // Consider using result type; just unwrap for now.
     fn from_plist(plist: Option<Plist>) -> Self;
+}
+
+impl FromPlist for Plist {
+    fn from_plist(plist: Plist) -> Self {
+        plist
+    }
 }
 
 impl FromPlist for String {
