@@ -15,6 +15,10 @@ use crate::to_plist::ToPlist;
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Font {
+    #[rename(".appVersion")]
+    pub app_version: String,
+    #[rename(".formatVersion")]
+    pub format_version: Option<i64>,
     pub family_name: String,
     pub version_major: i64,
     pub version_minor: i64,
@@ -515,7 +519,13 @@ mod tests {
 
     #[test]
     fn parse_format3_example() {
-        Font::load("testdata/GlyphsFileFormatv3.glyphs").unwrap();
+        let font = Font::load("testdata/GlyphsFileFormatv3.glyphs").unwrap();
+
+        assert_eq!(font.app_version, "3180");
+        assert_eq!(font.format_version, Some(3));
+
+        assert!(!font.other_stuff.contains_key(".appVersion"));
+        assert!(!font.other_stuff.contains_key(".formatVersion"));
     }
 
     #[test]
@@ -528,8 +538,6 @@ mod tests {
         let disallowed: HashSet<String> = other_keys
             .difference(&HashSet::from([
                 // Explicitly unhandled:
-                ".appVersion".to_owned(),
-                ".formatVersion".to_owned(),
                 "features".to_owned(),
                 "featurePrefixes".to_owned(),
                 // Potentially should be handled:
