@@ -101,7 +101,7 @@ impl From<&norad::Anchor> for Anchor {
     fn from(anchor: &norad::Anchor) -> Self {
         Self {
             name: anchor.name.as_ref().unwrap().as_str().to_string(),
-            position: kurbo::Point::new(anchor.x, anchor.y),
+            pos: kurbo::Point::new(anchor.x, anchor.y),
         }
     }
 }
@@ -112,8 +112,8 @@ impl TryFrom<&Anchor> for norad::Anchor {
     fn try_from(anchor: &Anchor) -> Result<Self, Self::Error> {
         let name = norad::Name::new(&anchor.name)?;
         Ok(Self::new(
-            anchor.position.x,
-            anchor.position.y,
+            anchor.pos.x,
+            anchor.pos.y,
             Some(name),
             None,
             None,

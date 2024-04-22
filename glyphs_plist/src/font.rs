@@ -40,9 +40,9 @@ pub struct Glyph {
     pub right_kerning_group: Option<norad::Name>,
     // "public.kern2." kerning group, because the left side matters.
     pub left_kerning_group: Option<norad::Name>,
-    pub left_metrics_key: Option<String>,
-    pub right_metrics_key: Option<String>,
-    pub width_metrics_key: Option<String>,
+    pub metric_left: Option<String>,
+    pub metric_right: Option<String>,
+    pub metric_width: Option<String>,
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
 }
@@ -58,9 +58,9 @@ pub struct Layer {
     pub components: Option<Vec<Component>>,
     pub anchors: Option<Vec<Anchor>>,
     pub guide_lines: Option<Vec<GuideLine>>,
-    pub left_metrics_key: Option<String>,
-    pub right_metrics_key: Option<String>,
-    pub width_metrics_key: Option<String>,
+    pub metric_left: Option<String>,
+    pub metric_right: Option<String>,
+    pub metric_width: Option<String>,
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
 }
@@ -108,13 +108,13 @@ pub struct Component {
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Anchor {
     pub name: String,
-    pub position: Point,
+    pub pos: Point,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct GuideLine {
     pub angle: Option<f64>,
-    pub position: Point,
+    pub pos: Point,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
@@ -167,9 +167,9 @@ impl Font {
         let plist = Plist::parse(&contents).map_err(|e| format!("{:?}", e))?;
 
         // The formatVersion key is only present in Glyphs 3+ files.
-        if plist.get(".formatVersion").is_some() {
-            return Err("Glyphs 3 files are not currently supported. \n\n\
-                        Go to Font Info, click the 'Other' tab and set 'File format version' to 'Version 2'."
+        if plist.get(".formatVersion").is_none() {
+            return Err("Glyphs 2 files are not currently supported. \n\n\
+                        Go to Font Info, click the 'Other' tab and set 'File format version' to 'Version 3'."
                 .to_string());
         }
 
@@ -218,22 +218,20 @@ impl ToPlist for norad::Name {
 
 impl FromPlist for norad::Codepoints {
     fn from_plist(plist: Plist) -> Self {
-        let parse_str_as_char = |s: &str| -> char {
-            let cp = u32::from_str_radix(s, 16).unwrap();
-            char::try_from(cp).unwrap()
-        };
-
         match plist {
-            Plist::String(s) => norad::Codepoints::new(
-                s.split(',')
-                    .filter(|s| !s.trim().is_empty())
-                    .map(parse_str_as_char),
-            ),
             Plist::Integer(n) => {
-                let s = format!("{n}");
-                let cp = u32::from_str_radix(&s, 16).unwrap();
-                let cp = char::try_from(cp).unwrap();
+                let cp: u32 = n.try_into().expect("Cannot parse codepoint");
+                let cp = char::try_from(cp).expect("Cannot parse codepoint");
                 norad::Codepoints::new([cp])
+            }
+            Plist::Array(array) => {
+                norad::Codepoints::new(array.iter().map(|codepoint| match codepoint {
+                    Plist::Integer(n) => {
+                        let cp: u32 = (*n).try_into().expect("Cannot parse codepoint");
+                        char::try_from(cp).expect("Cannot parse codepoint")
+                    }
+                    _ => panic!("Cannot parse codepoint: {:?}", codepoint),
+                }))
             }
             _ => panic!("Cannot parse codepoints: {:?}", plist),
         }
@@ -328,10 +326,12 @@ impl ToPlist for Affine {
 
 impl FromPlist for Point {
     fn from_plist(plist: Plist) -> Self {
-        let raw = plist.as_str().unwrap();
-        let raw = &raw[1..raw.len() - 1];
-        let coords: Vec<f64> = raw.split(", ").map(|c| c.parse().unwrap()).collect();
-        Point::new(coords[0], coords[1])
+        let raw = plist.as_array().expect("Cannot parse point tuple");
+        let mut raw = raw.iter().map(|v| v.as_f64().expect("Cannot parse point"));
+        let x = raw.next().expect("No x coordinate");
+        let y = raw.next().expect("No y coordinate");
+        assert!(raw.next().is_none(), "Too many coordinates");
+        Point::new(x, y)
     }
 }
 
@@ -466,16 +466,21 @@ mod tests {
 
     #[test]
     fn parse_empty_font_glyphs2() {
-        Font::load("testdata/NewFont.glyphs").unwrap();
+        Font::load("testdata/NewFont.glyphs").unwrap_err();
     }
 
     #[test]
     fn parse_empty_font_glyphs3() {
-        Font::load("testdata/NewFontG3.glyphs").unwrap_err();
+        Font::load("testdata/NewFontG3.glyphs").unwrap();
     }
 
     #[test]
     fn parse_float_names() {
         Font::load("testdata/FloatNames.glyphs").unwrap();
+    }
+
+    #[test]
+    fn parse_format3_example() {
+        Font::load("testdata/GlyphsFileFormatv3.glyphs").unwrap();
     }
 }

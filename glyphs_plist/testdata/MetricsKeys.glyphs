@@ -1,76 +1,161 @@
 {
-.appVersion = "3151";
+.appVersion = "3259";
+.formatVersion = 3;
 date = "2024-04-22 10:49:29 +0000";
 familyName = "New Font";
 fontMaster = (
 {
-alignmentZones = (
-"{800, 16}",
-"{0, -16}",
-"{-200, -16}"
-);
-ascender = 800;
-capHeight = 0;
-descender = -200;
 id = m01;
-xHeight = 0;
+metricValues = (
+{
+over = 16;
+pos = 800;
+},
+{
+over = -16;
+},
+{
+over = -16;
+pos = -200;
+},
+{
+},
+{
+},
+{
+}
+);
+name = Regular;
+},
+{
+iconName = Bold;
+id = "4E160E41-355A-471F-8B28-9467B6FB1FCE";
+metricValues = (
+{
+over = 16;
+pos = 800;
+},
+{
+over = -16;
+},
+{
+over = -16;
+pos = -200;
+},
+{
+over = 16;
+pos = 700;
+},
+{
+over = 16;
+pos = 500;
+},
+{
+}
+);
+name = Bold;
 }
 );
 glyphs = (
 {
 glyphname = A;
+lastChange = "2024-04-22 13:51:57 +0000";
 layers = (
 {
 layerId = m01;
 width = 600;
+},
+{
+layerId = "4E160E41-355A-471F-8B28-9467B6FB1FCE";
+width = 600;
 }
 );
-unicode = 0041;
+unicode = 65;
 },
 {
 glyphname = o;
+lastChange = "2024-04-22 13:52:12 +0000";
 layers = (
 {
 layerId = m01;
 width = 600;
+},
+{
+layerId = "4E160E41-355A-471F-8B28-9467B6FB1FCE";
+width = 600;
 }
 );
-unicode = 006F;
+unicode = 111;
 },
 {
 glyphname = Alphatonos;
-lastChange = "2024-04-22 10:50:42 +0000";
+lastChange = "2024-04-22 14:00:36 +0000";
 layers = (
 {
 layerId = m01;
 width = 600;
+},
+{
+layerId = "4E160E41-355A-471F-8B28-9467B6FB1FCE";
+metricLeft = "=A";
+metricWidth = "=123";
+width = 123;
 }
 );
-widthMetricsKey = A;
-rightMetricsKey = A;
-unicode = 0386;
+metricRight = A;
+metricWidth = A;
+unicode = 902;
 },
 {
 glyphname = space;
+lastChange = "2024-04-22 13:52:15 +0000";
 layers = (
 {
 layerId = m01;
 width = 200;
+},
+{
+layerId = "4E160E41-355A-471F-8B28-9467B6FB1FCE";
+width = 600;
 }
 );
-unicode = 0020;
+unicode = 32;
 },
 {
 glyphname = ef;
-lastChange = "2024-04-22 10:50:50 +0000";
+lastChange = "2024-04-22 13:52:15 +0000";
 layers = (
 {
 layerId = m01;
 width = 600;
+},
+{
+layerId = "4E160E41-355A-471F-8B28-9467B6FB1FCE";
+width = 600;
 }
 );
-leftMetricsKey = o;
-rightMetricsKey = o;
+metricLeft = o;
+metricRight = o;
+}
+);
+metrics = (
+{
+type = ascender;
+},
+{
+type = baseline;
+},
+{
+type = descender;
+},
+{
+type = "cap height";
+},
+{
+type = "x-height";
+},
+{
+type = "italic angle";
 }
 );
 unitsPerEm = 1000;
