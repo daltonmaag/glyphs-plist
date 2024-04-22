@@ -3,9 +3,9 @@ extern crate proc_macro;
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
-use syn::{parse_macro_input, Attribute, Data, DeriveInput, Fields};
+use syn::{parse_macro_input, Attribute, Data, DeriveInput, Fields, LitStr};
 
-#[proc_macro_derive(FromPlist, attributes(rest))]
+#[proc_macro_derive(FromPlist, attributes(rest, rename))]
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
@@ -25,7 +25,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::from(expanded)
 }
 
-#[proc_macro_derive(ToPlist, attributes(rest))]
+#[proc_macro_derive(ToPlist, attributes(rest, rename))]
 pub fn derive_to(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
@@ -53,10 +53,11 @@ fn add_deser(data: &Data) -> TokenStream {
                     if !is_rest(&f.attrs) {
                         let name = &f.ident;
                         let name_str = name.as_ref().unwrap().to_string();
-                        let snake_name = snake_to_camel_case(&name_str);
+                        let plist_name =
+                            get_name(&f.attrs).unwrap_or_else(|| snake_to_camel_case(&name_str));
                         Some(quote_spanned! {f.span() =>
                             #name: crate::from_plist::FromPlistOpt::from_plist(
-                                hashmap.remove(#snake_name)
+                                hashmap.remove(#plist_name)
                             ),
                         })
                     } else {
@@ -92,10 +93,11 @@ fn add_ser(data: &Data) -> TokenStream {
                     if !is_rest(&f.attrs) {
                         let name = &f.ident;
                         let name_str = name.as_ref().unwrap().to_string();
-                        let snake_name = snake_to_camel_case(&name_str);
+                        let plist_name =
+                            get_name(&f.attrs).unwrap_or_else(|| snake_to_camel_case(&name_str));
                         Some(quote_spanned! {f.span() =>
                             if let Some(plist) = crate::to_plist::ToPlistOpt::to_plist(self.#name) {
-                                hashmap.insert(#snake_name.to_string(), plist);
+                                hashmap.insert(#plist_name.to_string(), plist);
                             }
                         })
                     } else {
@@ -139,6 +141,17 @@ fn is_rest(attrs: &[Attribute]) -> bool {
             .map(|ident| ident == "rest")
             .unwrap_or(false)
     })
+}
+
+fn get_name(attrs: &[Attribute]) -> Option<String> {
+    attrs
+        .iter()
+        .find(|attr| attr.path.is_ident("rename"))
+        .map(|attr| {
+            attr.parse_args::<LitStr>()
+                .expect("Could not parse 'rename' attribute as string literal")
+                .value()
+        })
 }
 
 fn snake_to_camel_case(id: &str) -> String {

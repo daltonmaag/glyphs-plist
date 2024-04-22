@@ -22,7 +22,10 @@ pub struct Font {
     pub glyphs: Vec<Glyph>,
     pub font_master: Vec<FontMaster>,
     pub instances: Option<Vec<Instance>>,
-    pub kerning: Option<HashMap<String, norad::Kerning>>,
+    #[rename("kerningLTR")]
+    pub kerning_ltr: Option<HashMap<String, norad::Kerning>>,
+    #[rename("kerningRTL")]
+    pub kerning_rtl: Option<HashMap<String, norad::Kerning>>,
     pub disables_automatic_alignment: Option<bool>,
     pub disables_nice_names: Option<bool>,
     #[rest]
@@ -542,9 +545,7 @@ mod tests {
                 "metrics".to_owned(),
                 "settings".to_owned(),
                 "note".to_owned(),
-                //"kerningRTL".to_owned(),
                 "axes".to_owned(),
-                //"kerningLTR".to_owned(),
                 "date".to_owned(),
             ]))
             .cloned()
