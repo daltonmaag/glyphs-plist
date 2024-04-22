@@ -56,13 +56,16 @@ pub struct Glyph {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Layer {
+    pub attr: Option<LayerAttr>,
     pub name: Option<String>,
     pub background: Option<BackgroundLayer>,
     pub associated_master_id: Option<String>,
     pub layer_id: String,
     pub width: f64,
-    pub paths: Option<Vec<Path>>,
-    pub components: Option<Vec<Component>>,
+    // TODO: shapes
+    // pub paths: Option<Vec<Path>>,
+    // pub components: Option<Vec<Component>>,
+    pub shapes: Option<Vec<Shape>>,
     pub anchors: Option<Vec<Anchor>>,
     pub guide_lines: Option<Vec<GuideLine>>,
     pub metric_left: Option<String>,
@@ -73,12 +76,31 @@ pub struct Layer {
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
+pub struct LayerAttr {
+    pub axis_rules: Option<AxisRules>,
+    pub coordinates: Option<Vec<f64>>,
+}
+
+#[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
+pub struct AxisRules {
+    pub min: Option<f64>,
+    pub max: Option<f64>,
+}
+
+#[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct BackgroundLayer {
-    pub paths: Option<Vec<Path>>,
-    pub components: Option<Vec<Component>>,
+    // TODO: shapes
+    // pub paths: Option<Vec<Path>>,
+    // pub components: Option<Vec<Component>>,
     pub anchors: Option<Vec<Anchor>>,
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Shape {
+    Path(Path),
+    Component(Component),
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
@@ -116,7 +138,7 @@ pub struct Component {
 pub struct Anchor {
     pub name: String,
     pub orientation: Option<AnchorOrientation>,
-    pub pos: Point,
+    pub pos: Option<Point>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -242,6 +264,30 @@ impl ToPlist for AnchorOrientation {
         match self {
             AnchorOrientation::Center => Plist::String("center".into()),
             AnchorOrientation::Right => Plist::String("right".into()),
+        }
+    }
+}
+
+impl FromPlist for Shape {
+    fn from_plist(plist: Plist) -> Self {
+        match plist {
+            Plist::Dictionary(dict) => {
+                if dict.contains_key("ref") {
+                    Shape::Component(FromPlist::from_plist(Plist::Dictionary(dict)))
+                } else {
+                    Shape::Path(FromPlist::from_plist(Plist::Dictionary(dict)))
+                }
+            }
+            _ => panic!("Cannot parse shape '{:?}'", plist),
+        }
+    }
+}
+
+impl ToPlist for Shape {
+    fn to_plist(self) -> Plist {
+        match self {
+            Shape::Path(path) => ToPlist::to_plist(path),
+            Shape::Component(component) => ToPlist::to_plist(component),
         }
     }
 }
