@@ -37,9 +37,9 @@ pub struct Glyph {
     /// The name of the glyph.
     pub glyphname: norad::Name,
     // "public.kern1." kerning group, because the right side matters.
-    pub right_kerning_group: Option<norad::Name>,
+    pub kern_right: Option<norad::Name>,
     // "public.kern2." kerning group, because the left side matters.
-    pub left_kerning_group: Option<norad::Name>,
+    pub kern_left: Option<norad::Name>,
     pub metric_left: Option<String>,
     pub metric_right: Option<String>,
     pub metric_width: Option<String>,
@@ -108,7 +108,14 @@ pub struct Component {
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Anchor {
     pub name: String,
+    pub orientation: Option<AnchorOrientation>,
     pub pos: Point,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum AnchorOrientation {
+    Center,
+    Right,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
@@ -206,6 +213,28 @@ impl FromPlist for norad::Name {
             Plist::Float(f) if f.is_infinite() => Self::new("infinity").unwrap(),
             Plist::Float(f) if f.is_nan() => Self::new("nan").unwrap(),
             _ => panic!("Cannot parse glyphname '{:?}'", plist),
+        }
+    }
+}
+
+impl FromPlist for AnchorOrientation {
+    fn from_plist(plist: Plist) -> Self {
+        match plist {
+            Plist::String(s) => match s.as_str() {
+                "center" => AnchorOrientation::Center,
+                "right" => AnchorOrientation::Right,
+                _ => panic!("Unknown anchor orientation '{:?}'", s),
+            },
+            _ => panic!("Cannot parse anchor orientation '{:?}'", plist),
+        }
+    }
+}
+
+impl ToPlist for AnchorOrientation {
+    fn to_plist(self) -> Plist {
+        match self {
+            AnchorOrientation::Center => Plist::String("center".into()),
+            AnchorOrientation::Right => Plist::String("right".into()),
         }
     }
 }

@@ -101,6 +101,7 @@ impl From<&norad::Anchor> for Anchor {
     fn from(anchor: &norad::Anchor) -> Self {
         Self {
             name: anchor.name.as_ref().unwrap().as_str().to_string(),
+            orientation: None,
             pos: kurbo::Point::new(anchor.x, anchor.y),
         }
     }
