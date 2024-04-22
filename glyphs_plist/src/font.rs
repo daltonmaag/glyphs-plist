@@ -491,6 +491,8 @@ impl ToPlist for AlignmentZone {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::*;
 
     #[test]
@@ -511,5 +513,46 @@ mod tests {
     #[test]
     fn parse_format3_example() {
         Font::load("testdata/GlyphsFileFormatv3.glyphs").unwrap();
+    }
+
+    #[test]
+    fn only_expected_other_stuff() {
+        // TODO: Run on all test fixtures.
+        let font = Font::load("testdata/GlyphsFileFormatv3.glyphs").unwrap();
+
+        let other_keys: HashSet<String> = font.other_stuff.keys().cloned().collect();
+
+        let disallowed: HashSet<String> = other_keys
+            .difference(&HashSet::from([
+                // Explicitly unhandled:
+                ".appVersion".to_owned(),
+                ".formatVersion".to_owned(),
+                "features".to_owned(),
+                "featurePrefixes".to_owned(),
+                // Potentially should be handled:
+                // TODO: Evaluate these.
+                "numbers".to_owned(),
+                "kerningVertical".to_owned(),
+                "customParameters".to_owned(),
+                "properties".to_owned(),
+                "DisplayStrings".to_owned(),
+                "classes".to_owned(),
+                "userData".to_owned(),
+                "stems".to_owned(),
+                "metrics".to_owned(),
+                "settings".to_owned(),
+                "note".to_owned(),
+                //"kerningRTL".to_owned(),
+                "axes".to_owned(),
+                //"kerningLTR".to_owned(),
+                "date".to_owned(),
+            ]))
+            .cloned()
+            .collect();
+
+        assert_eq!(disallowed, HashSet::from([]));
+
+        // TODO: Implement for nested structs.
+        // TODO: Check that structs without #[rest] fail to parse when there are extra keys.
     }
 }
