@@ -673,19 +673,32 @@ mod tests {
         // TODO: Check that structs without #[rest] fail to parse when there are extra keys.
     }
 
-    #[derive(FromPlist)]
-    struct FooBar {
-        _foo: String,
-    }
-
     #[test]
     #[should_panic]
     fn panics_on_unexpected_fields() {
+        #[derive(FromPlist)]
+        struct FooBar {
+            _foo: String,
+        }
+
         let with_unexpected = Plist::Dictionary(HashMap::from([
             ("_foo".to_owned(), Plist::String("abc".to_owned())),
             ("_bar".to_owned(), Plist::String("def".to_owned())),
         ]));
 
         FooBar::from_plist(with_unexpected);
+    }
+
+    #[test]
+    fn populates_default_values() {
+        #[derive(FromPlist)]
+        struct FooBar {
+            #[default(2 + 2)]
+            has_default: i64,
+        }
+
+        let FooBar { has_default } = FooBar::from_plist(Plist::Dictionary(Default::default()));
+
+        assert_eq!(has_default, 4);
     }
 }
