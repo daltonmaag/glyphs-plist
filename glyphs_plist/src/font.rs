@@ -23,7 +23,7 @@ pub struct Font {
     pub family_name: String,
     pub version_major: i64,
     pub version_minor: i64,
-    pub units_per_em: i64,
+    pub units_per_em: u16, // Glyphs UI only allows for 16-16384 inclusive
     pub glyphs: Vec<Glyph>,
     pub font_master: Vec<FontMaster>,
     pub metrics: Vec<Metric>,
@@ -403,6 +403,23 @@ impl Font {
 impl Glyph {
     pub fn get_layer(&self, layer_id: &str) -> Option<&Layer> {
         self.layers.iter().find(|l| l.layer_id == layer_id)
+    }
+}
+
+impl FromPlist for u16 {
+    fn from_plist(plist: Plist) -> Self {
+        match plist {
+            Plist::Integer(wider) => wider
+                .try_into()
+                .expect("Integer '{:?}' is out-of-bounds of u16"),
+            _ => panic!("Cannot parse u16 '{:?}'", plist),
+        }
+    }
+}
+
+impl ToPlist for u16 {
+    fn to_plist(self) -> Plist {
+        Plist::Integer(self.into())
     }
 }
 
