@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 pub use glyphs_plist_derive::FromPlist;
 
 use crate::plist::Plist;
@@ -40,6 +42,12 @@ impl FromPlist for i64 {
 impl FromPlist for f64 {
     fn from_plist(plist: Plist) -> Self {
         plist.as_f64().expect("expected float")
+    }
+}
+
+impl FromPlist for HashMap<String, Plist> {
+    fn from_plist(plist: Plist) -> Self {
+        plist.into_hashmap()
     }
 }
 

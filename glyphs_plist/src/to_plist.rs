@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 pub use glyphs_plist_derive::ToPlist;
 
 use crate::plist::Plist;
@@ -35,6 +37,12 @@ impl ToPlist for i64 {
 }
 
 impl ToPlist for f64 {
+    fn to_plist(self) -> Plist {
+        self.into()
+    }
+}
+
+impl ToPlist for HashMap<String, Plist> {
     fn to_plist(self) -> Plist {
         self.into()
     }

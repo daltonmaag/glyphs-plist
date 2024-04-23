@@ -66,7 +66,7 @@ pub struct Layer {
     pub vert_origin: Option<f64>,
     pub shapes: Option<Vec<Shape>>,
     pub anchors: Option<Vec<Anchor>>,
-    pub guide_lines: Option<Vec<GuideLine>>,
+    pub guides: Option<Vec<GuideLine>>,
     pub metric_top: Option<String>,
     pub metric_bottom: Option<String>,
     pub metric_left: Option<String>,
@@ -81,6 +81,8 @@ pub struct Layer {
 pub struct LayerAttr {
     pub axis_rules: Option<Vec<AxisRules>>,
     pub coordinates: Option<Vec<f64>>,
+    #[rest]
+    pub other_stuff: HashMap<String, Plist>,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
@@ -105,8 +107,41 @@ pub enum Shape {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Path {
+    pub attr: Option<PathAttrs>,
     pub closed: bool,
     pub nodes: Vec<Node>,
+}
+
+#[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
+pub struct PathAttrs {
+    pub line_cap_start: Option<f64>,
+    pub line_cap_end: Option<f64>,
+    pub stroke_pos: Option<i64>,
+    pub stroke_height: Option<f64>,
+    pub stroke_width: Option<f64>,
+    pub stroke_color: Option<Vec<i64>>,
+    pub mask: Option<i64>,
+    pub fill: Option<i64>,
+    pub fill_color: Option<Vec<i64>>,
+    pub shadow: Option<PathShadow>,
+    pub gradient: Option<PathGradient>,
+}
+
+#[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
+pub struct PathShadow {
+    pub blur: String,
+    pub color: Vec<i64>,
+    pub offset_x: String,
+    pub offset_y: String,
+}
+
+#[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
+pub struct PathGradient {
+    pub colors: Vec<Plist>, // TODO: Destructure this once relevant.
+    pub start: Point,
+    pub end: Point,
+    #[rename("type")]
+    pub r#type: String, // TODO: Make enum once relevant.
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -149,7 +184,10 @@ pub struct Scale {
 pub struct Anchor {
     pub name: String,
     pub orientation: Option<AnchorOrientation>,
-    pub pos: Option<Point>,
+    #[default(Default::default())]
+    pub pos: Point,
+    #[default(Default::default())]
+    pub user_data: HashMap<String, Plist>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -160,8 +198,19 @@ pub enum AnchorOrientation {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct GuideLine {
-    pub angle: Option<f64>,
+    pub name: Option<String>,
+    #[default(0.0)]
+    pub angle: f64,
+    #[default(Default::default())]
     pub pos: Point,
+    #[default(false)]
+    pub locked: bool,
+    #[default(0.0)]
+    pub lock_angle: f64,
+    #[default(false)]
+    pub show_measurement: bool,
+    pub orientation: Option<AnchorOrientation>,
+    pub filter: Option<String>,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
@@ -488,6 +537,7 @@ impl ToPlist for Scale {
 impl Path {
     pub fn new(closed: bool) -> Path {
         Path {
+            attr: None,
             nodes: Vec::new(),
             closed,
         }

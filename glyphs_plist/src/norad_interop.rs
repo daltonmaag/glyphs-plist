@@ -15,6 +15,7 @@ impl From<&norad::Contour> for Path {
             nodes.rotate_left(1);
         }
         Self {
+            attr: None,
             closed: contour.is_closed(),
             nodes,
         }
@@ -177,7 +178,8 @@ impl From<&norad::Anchor> for Anchor {
         Self {
             name: anchor.name.as_ref().unwrap().as_str().to_string(),
             orientation: None,
-            pos: Some(kurbo::Point::new(anchor.x, anchor.y)),
+            pos: kurbo::Point::new(anchor.x, anchor.y),
+            user_data: Default::default(),
         }
     }
 }
@@ -188,8 +190,8 @@ impl TryFrom<&Anchor> for norad::Anchor {
     fn try_from(anchor: &Anchor) -> Result<Self, Self::Error> {
         let name = norad::Name::new(&anchor.name)?;
         Ok(Self::new(
-            anchor.pos.map(|p| p.x).unwrap_or(0.0),
-            anchor.pos.map(|p| p.y).unwrap_or(0.0),
+            anchor.pos.x,
+            anchor.pos.y,
             Some(name),
             None,
             None,
