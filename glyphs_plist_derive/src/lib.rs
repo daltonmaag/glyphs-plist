@@ -10,32 +10,32 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
 
-    let (deser, check) = add_deser(&input.data);
+    let DeserialisedFields {
+        fields,
+        consumes_rest,
+    } = add_deser(&input.data);
 
-    let expanded = match check {
-        Some(check) => {
-            quote! {
-                impl crate::from_plist::FromPlist for #name {
-                    fn from_plist(plist: crate::plist::Plist) -> Self {
-                        let mut hashmap = plist.into_hashmap();
-                        let result = #name {
-                            #deser
-                        };
-                        #check
-                        result
+    let expanded = if consumes_rest {
+        quote! {
+            impl crate::from_plist::FromPlist for #name {
+                fn from_plist(plist: crate::plist::Plist) -> Self {
+                    let mut hashmap = plist.into_hashmap();
+                    #name {
+                        #fields
                     }
                 }
             }
         }
-        None => {
-            quote! {
-                impl crate::from_plist::FromPlist for #name {
-                    fn from_plist(plist: crate::plist::Plist) -> Self {
-                        let mut hashmap = plist.into_hashmap();
-                        #name {
-                            #deser
-                        }
-                    }
+    } else {
+        quote! {
+            impl crate::from_plist::FromPlist for #name {
+                fn from_plist(plist: crate::plist::Plist) -> Self {
+                    let mut hashmap = plist.into_hashmap();
+                    let result = #name {
+                        #fields
+                    };
+                    assert!(hashmap.is_empty(), "unrecognised fields: {:?}", hashmap.keys());
+                    result
                 }
             }
         }
@@ -64,7 +64,12 @@ pub fn derive_to(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::from(expanded)
 }
 
-fn add_deser(data: &Data) -> (TokenStream, Option<TokenStream>) {
+struct DeserialisedFields {
+    fields: TokenStream,
+    consumes_rest: bool,
+}
+
+fn add_deser(data: &Data) -> DeserialisedFields {
     match *data {
         Data::Struct(ref data) => match data.fields {
             Fields::Named(ref fields) => {
@@ -95,21 +100,17 @@ fn add_deser(data: &Data) -> (TokenStream, Option<TokenStream>) {
                 });
 
                 match recurse_rest {
-                    Some(recurse_rest) => (
-                        quote! {
+                    Some(recurse_rest) => DeserialisedFields {
+                        fields: quote! {
                             #( #recurse )*
                             #recurse_rest
                         },
-                        None,
-                    ),
-                    None => (
-                        quote! {
-                            #( #recurse )*
-                        },
-                        Some(quote! {
-                            assert!(hashmap.is_empty(), "unrecognised fields: {:?}", hashmap.keys());
-                        }),
-                    ),
+                        consumes_rest: true,
+                    },
+                    None => DeserialisedFields {
+                        fields: quote! { #( #recurse )* },
+                        consumes_rest: false,
+                    },
                 }
             }
             _ => unimplemented!(),
