@@ -409,6 +409,11 @@ impl From<String> for Plist {
         Plist::String(x)
     }
 }
+impl From<u8> for Plist {
+    fn from(x: u8) -> Plist {
+        Plist::Integer(x as i64)
+    }
+}
 
 impl From<i64> for Plist {
     fn from(x: i64) -> Plist {

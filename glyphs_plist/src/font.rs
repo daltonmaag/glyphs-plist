@@ -73,8 +73,21 @@ pub struct Layer {
     pub metric_right: Option<String>,
     pub metric_width: Option<String>,
     pub metric_vert_width: Option<String>,
+    #[default(false)]
+    pub locked: bool,
+    #[default(Default::default())]
+    pub user_data: HashMap<String, Plist>,
+    pub color: Option<Color>,
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Color {
+    ColorIndex(i64),
+    GreyAlpha(u8, u8),
+    RGBA(u8, u8, u8, u8),
+    CMYKA(u8, u8, u8, u8, u8),
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
@@ -137,7 +150,7 @@ pub struct PathShadow {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct PathGradient {
-    pub colors: Vec<Plist>, // TODO: Destructure this once relevant.
+    pub colors: Vec<Vec<Color>>, // TODO: Destructure this once relevant.
     pub start: Point,
     pub end: Point,
     #[rename("type")]
@@ -328,6 +341,47 @@ impl ToPlist for AnchorOrientation {
     }
 }
 
+impl FromPlist for Color {
+    fn from_plist(plist: Plist) -> Self {
+        match plist {
+            Plist::Integer(int) => Color::ColorIndex(int),
+            Plist::Array(array) => {
+                let numbers: Vec<u8> = array
+                    .iter()
+                    .map(|v| {
+                        v.as_i64()
+                            .expect("colors must be numbers")
+                            .try_into()
+                            .expect("color numbers must be in range 0–255")
+                    })
+                    .collect();
+                match numbers.as_slice() {
+                    &[g, a] => Color::GreyAlpha(g, a),
+                    &[r, g, b, a] => Color::RGBA(r, g, b, a),
+                    &[c, m, y, k, a] => Color::CMYKA(c, m, y, k, a),
+                    _ => panic!(
+                        "color array must contain 2 (gray, alpha), 4 (RGBA) or 5 (CMYKA) numbers"
+                    ),
+                }
+            }
+            _ => panic!("a color must be either a number or an array of 2–5 numbers"),
+        }
+    }
+}
+
+impl ToPlist for Color {
+    fn to_plist(self) -> Plist {
+        match self {
+            Color::ColorIndex(int) => int.into(),
+            Color::GreyAlpha(g, a) => Plist::Array(vec![g.into(), a.into()]),
+            Color::RGBA(r, g, b, a) => Plist::Array(vec![r.into(), g.into(), b.into(), a.into()]),
+            Color::CMYKA(c, m, y, k, a) => {
+                Plist::Array(vec![c.into(), m.into(), y.into(), k.into(), a.into()])
+            }
+        }
+    }
+}
+
 impl FromPlist for Shape {
     fn from_plist(plist: Plist) -> Self {
         match plist {
@@ -387,11 +441,11 @@ impl FromPlist for norad::Codepoints {
 impl ToPlist for norad::Codepoints {
     fn to_plist(self) -> Plist {
         assert!(!self.is_empty());
-        self.iter()
-            .map(|c| format!("{:04X}", c as usize))
-            .collect::<Vec<_>>()
-            .join(",")
-            .into()
+        if self.len() == 1 {
+            Plist::Integer(self.iter().next().unwrap() as i64)
+        } else {
+            Plist::Array(self.iter().map(|cp| Plist::Integer(cp as i64)).collect())
+        }
     }
 }
 
