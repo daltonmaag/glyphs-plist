@@ -10,18 +10,37 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
 
-    let deser = add_deser(&input.data);
+    let (deser, check) = add_deser(&input.data);
 
-    let expanded = quote! {
-        impl crate::from_plist::FromPlist for #name {
-            fn from_plist(plist: crate::plist::Plist) -> Self {
-                let mut hashmap = plist.into_hashmap();
-                #name {
-                    #deser
+    let expanded = match check {
+        Some(check) => {
+            quote! {
+                impl crate::from_plist::FromPlist for #name {
+                    fn from_plist(plist: crate::plist::Plist) -> Self {
+                        let mut hashmap = plist.into_hashmap();
+                        let result = #name {
+                            #deser
+                        };
+                        #check
+                        result
+                    }
+                }
+            }
+        }
+        None => {
+            quote! {
+                impl crate::from_plist::FromPlist for #name {
+                    fn from_plist(plist: crate::plist::Plist) -> Self {
+                        let mut hashmap = plist.into_hashmap();
+                        #name {
+                            #deser
+                        }
+                    }
                 }
             }
         }
     };
+
     proc_macro::TokenStream::from(expanded)
 }
 
@@ -45,7 +64,7 @@ pub fn derive_to(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::from(expanded)
 }
 
-fn add_deser(data: &Data) -> TokenStream {
+fn add_deser(data: &Data) -> (TokenStream, Option<TokenStream>) {
     match *data {
         Data::Struct(ref data) => match data.fields {
             Fields::Named(ref fields) => {
@@ -64,7 +83,7 @@ fn add_deser(data: &Data) -> TokenStream {
                         None
                     }
                 });
-                let recurse_rest = fields.named.iter().filter_map(|f| {
+                let recurse_rest = fields.named.iter().find_map(|f| {
                     if is_rest(&f.attrs) {
                         let name = &f.ident;
                         Some(quote_spanned! {f.span() =>
@@ -74,9 +93,23 @@ fn add_deser(data: &Data) -> TokenStream {
                         None
                     }
                 });
-                quote! {
-                    #( #recurse )*
-                    #( #recurse_rest )*
+
+                match recurse_rest {
+                    Some(recurse_rest) => (
+                        quote! {
+                            #( #recurse )*
+                            #recurse_rest
+                        },
+                        None,
+                    ),
+                    None => (
+                        quote! {
+                            #( #recurse )*
+                        },
+                        Some(quote! {
+                            assert!(hashmap.is_empty(), "unrecognised fields: {:?}", hashmap.keys());
+                        }),
+                    ),
                 }
             }
             _ => unimplemented!(),
