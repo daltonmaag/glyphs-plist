@@ -22,7 +22,7 @@ pub struct Font {
     pub family_name: String,
     pub version_major: i64,
     pub version_minor: i64,
-    pub units_per_em: f64,
+    pub units_per_em: i64,
     pub glyphs: Vec<Glyph>,
     pub font_master: Vec<FontMaster>,
     pub instances: Option<Vec<Instance>>,
