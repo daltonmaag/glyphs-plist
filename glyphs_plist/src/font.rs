@@ -733,6 +733,17 @@ mod tests {
     }
 
     #[test]
+    fn parse_format3_example2() {
+        let contents = std::fs::read_to_string("testdata/GlyphsFileFormatv3.glyphs").unwrap();
+        let plist = Plist::parse(&contents).unwrap();
+        let plist_original = plist.clone();
+        let font = Font::from_plist(plist);
+        let plist_roundtrip = ToPlist::to_plist(font);
+
+        assert_eq!(plist_original, plist_roundtrip);
+    }
+
+    #[test]
     fn only_expected_other_stuff() {
         // TODO: Run on all test fixtures.
         let font = Font::load("testdata/GlyphsFileFormatv3.glyphs").unwrap();
