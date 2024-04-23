@@ -5,7 +5,7 @@ use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{parse_macro_input, Attribute, Data, DeriveInput, Fields, LitStr};
 
-#[proc_macro_derive(FromPlist, attributes(rest, rename))]
+#[proc_macro_derive(FromPlist, attributes(rest, rename, default))]
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
@@ -73,21 +73,33 @@ fn add_deser(data: &Data) -> DeserialisedFields {
     match *data {
         Data::Struct(ref data) => match data.fields {
             Fields::Named(ref fields) => {
-                let recurse = fields.named.iter().filter_map(|f| {
-                    if !is_rest(&f.attrs) {
+                let recurse = fields
+                    .named
+                    .iter()
+                    .filter(|field| !is_rest(&field.attrs))
+                    .map(|f| {
                         let name = &f.ident;
                         let name_str = name.as_ref().unwrap().to_string();
                         let plist_name =
                             get_name(&f.attrs).unwrap_or_else(|| snake_to_camel_case(&name_str));
-                        Some(quote_spanned! {f.span() =>
-                            #name: crate::from_plist::FromPlistOpt::from_plist(
-                                hashmap.remove(#plist_name)
-                            ),
-                        })
-                    } else {
-                        None
-                    }
-                });
+                        let default = get_default(&f.attrs);
+                        match default {
+                            Some(default) => quote_spanned! {f.span() =>
+                                #[allow(unused_parens, clippy::double_parens)]
+                                #name: hashmap
+                                    .remove(#plist_name)
+                                    .map(Some)
+                                    .map(crate::from_plist::FromPlistOpt::from_plist)
+                                    .unwrap_or_else(|| #default),
+                            },
+                            None => quote_spanned! {f.span() =>
+                                #name: crate::from_plist::FromPlistOpt::from_plist(
+                                    hashmap.remove(#plist_name)
+                                ),
+                            },
+                        }
+                    });
+
                 let recurse_rest = fields.named.iter().find_map(|f| {
                     if is_rest(&f.attrs) {
                         let name = &f.ident;
@@ -186,6 +198,13 @@ fn get_name(attrs: &[Attribute]) -> Option<String> {
                 .expect("Could not parse 'rename' attribute as string literal")
                 .value()
         })
+}
+
+fn get_default(attrs: &[Attribute]) -> Option<&TokenStream> {
+    attrs
+        .iter()
+        .find(|attr| attr.path.is_ident("default"))
+        .map(|attr| &attr.tokens)
 }
 
 fn snake_to_camel_case(id: &str) -> String {
