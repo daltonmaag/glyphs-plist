@@ -733,7 +733,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_format3_example2() {
+    fn roundtrip_plist() {
         let contents = std::fs::read_to_string("testdata/GlyphsFileFormatv3.glyphs").unwrap();
         let plist = Plist::parse(&contents).unwrap();
         let plist_original = plist.clone();
