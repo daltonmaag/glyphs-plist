@@ -8,7 +8,7 @@ mod to_plist;
 
 pub use font::{
     Anchor, BackgroundLayer, Component, Font, FontMaster, Glyph, Instance, Layer, Node, NodeType,
-    Path,
+    Path, Shape,
 };
 pub use from_plist::FromPlist;
 pub use plist::Plist;
