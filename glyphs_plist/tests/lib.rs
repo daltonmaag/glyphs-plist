@@ -37,7 +37,7 @@ fn open_contour_smooth_point() {
         {
             closed = 0;
             nodes = (
-                "303 128 LINE SMOOTH"
+                (303,128,ls)
             );
         }
     "#;

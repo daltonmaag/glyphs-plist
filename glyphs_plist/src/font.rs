@@ -62,9 +62,6 @@ pub struct Layer {
     pub associated_master_id: Option<String>,
     pub layer_id: String,
     pub width: f64,
-    // TODO: shapes
-    // pub paths: Option<Vec<Path>>,
-    // pub components: Option<Vec<Component>>,
     pub shapes: Option<Vec<Shape>>,
     pub anchors: Option<Vec<Anchor>>,
     pub guide_lines: Option<Vec<GuideLine>>,
@@ -77,7 +74,7 @@ pub struct Layer {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct LayerAttr {
-    pub axis_rules: Option<AxisRules>,
+    pub axis_rules: Option<Vec<AxisRules>>,
     pub coordinates: Option<Vec<f64>>,
 }
 
@@ -89,10 +86,8 @@ pub struct AxisRules {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct BackgroundLayer {
-    // TODO: shapes
-    // pub paths: Option<Vec<Path>>,
-    // pub components: Option<Vec<Component>>,
     pub anchors: Option<Vec<Anchor>>,
+    pub shapes: Option<Vec<Shape>>,
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
 }
@@ -128,10 +123,21 @@ pub enum NodeType {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Component {
-    pub name: String,
-    pub transform: Option<Affine>,
+    #[rename("ref")]
+    pub reference: String,
+    #[rename("angle")]
+    pub rotation: Option<f64>,
+    pub pos: Option<Point>,
+    pub scale: Option<Scale>,
+    pub slant: Option<Scale>,
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Scale {
+    pub horizontal: f64,
+    pub vertical: f64,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
@@ -300,22 +306,26 @@ impl ToPlist for norad::Name {
 
 impl FromPlist for norad::Codepoints {
     fn from_plist(plist: Plist) -> Self {
+        const ERR_MSG: &str = "Unicode codepoint must be integer in range U+0000–U+10FFFF";
         match plist {
             Plist::Integer(n) => {
-                let cp: u32 = n.try_into().expect("Cannot parse codepoint");
-                let cp = char::try_from(cp).expect("Cannot parse codepoint");
+                let cp: u32 = n.try_into().expect(ERR_MSG);
+                let cp = char::try_from(cp).expect(ERR_MSG);
                 norad::Codepoints::new([cp])
             }
             Plist::Array(array) => {
                 norad::Codepoints::new(array.iter().map(|codepoint| match codepoint {
                     Plist::Integer(n) => {
-                        let cp: u32 = (*n).try_into().expect("Cannot parse codepoint");
-                        char::try_from(cp).expect("Cannot parse codepoint")
+                        let cp: u32 = (*n).try_into().expect(ERR_MSG);
+                        char::try_from(cp).expect(ERR_MSG)
                     }
-                    _ => panic!("Cannot parse codepoint: {:?}", codepoint),
+                    _ => panic!("codepoint must be integer, but got {:?}", codepoint),
                 }))
             }
-            _ => panic!("Cannot parse codepoints: {:?}", plist),
+            _ => panic!(
+                "codepoint must be integer or array of integers, but got {:?}",
+                plist
+            ),
         }
     }
 }
@@ -333,11 +343,29 @@ impl ToPlist for norad::Codepoints {
 
 impl FromPlist for Node {
     fn from_plist(plist: Plist) -> Self {
-        let mut spl = plist.as_str().unwrap().splitn(3, ' ');
-        let x = spl.next().unwrap().parse().unwrap();
-        let y = spl.next().unwrap().parse().unwrap();
+        let mut tuple = plist
+            .as_array()
+            .expect("a node must be described by a tuple")
+            .iter();
+        let x = tuple
+            .next()
+            .expect("a node must have an x coordinate")
+            .as_f64()
+            .expect("a node x coordinate must be a floating point number");
+        let y = tuple
+            .next()
+            .expect("a node must have a y coordinate")
+            .as_f64()
+            .expect("a node y coordinate must be a floating point number");
+        let node_type = tuple
+            .next()
+            .expect("a node must have type")
+            .as_str()
+            .expect("a node type must be a string")
+            .parse()
+            .expect("a node type must be any of 'l', 'ls', 'c', 'cs', 'q', 'qs' or 'o'");
+
         let pt = Point::new(x, y);
-        let node_type = spl.next().unwrap().parse().unwrap();
         Node { pt, node_type }
     }
 }
@@ -346,13 +374,13 @@ impl std::str::FromStr for NodeType {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "LINE" => Ok(NodeType::Line),
-            "LINE SMOOTH" => Ok(NodeType::LineSmooth),
-            "OFFCURVE" => Ok(NodeType::OffCurve),
-            "CURVE" => Ok(NodeType::Curve),
-            "CURVE SMOOTH" => Ok(NodeType::CurveSmooth),
-            "QCURVE" => Ok(NodeType::QCurve),
-            "QCURVE SMOOTH" => Ok(NodeType::QCurveSmooth),
+            "l" => Ok(NodeType::Line),
+            "ls" => Ok(NodeType::LineSmooth),
+            "c" => Ok(NodeType::Curve),
+            "cs" => Ok(NodeType::CurveSmooth),
+            "q" => Ok(NodeType::QCurve),
+            "qs" => Ok(NodeType::QCurveSmooth),
+            "o" => Ok(NodeType::OffCurve),
             _ => Err(format!("unknown node type {}", s)),
         }
     }
@@ -361,13 +389,13 @@ impl std::str::FromStr for NodeType {
 impl NodeType {
     fn glyphs_str(&self) -> &'static str {
         match self {
-            NodeType::Line => "LINE",
-            NodeType::LineSmooth => "LINE SMOOTH",
-            NodeType::OffCurve => "OFFCURVE",
-            NodeType::Curve => "CURVE",
-            NodeType::CurveSmooth => "CURVE SMOOTH",
-            NodeType::QCurve => "QCURVE",
-            NodeType::QCurveSmooth => "QCURVE SMOOTH",
+            NodeType::Line => "l",
+            NodeType::LineSmooth => "ls",
+            NodeType::Curve => "c",
+            NodeType::CurveSmooth => "cs",
+            NodeType::QCurve => "q",
+            NodeType::QCurveSmooth => "qs",
+            NodeType::OffCurve => "o",
         }
     }
 }
@@ -408,18 +436,47 @@ impl ToPlist for Affine {
 
 impl FromPlist for Point {
     fn from_plist(plist: Plist) -> Self {
-        let raw = plist.as_array().expect("Cannot parse point tuple");
-        let mut raw = raw.iter().map(|v| v.as_f64().expect("Cannot parse point"));
-        let x = raw.next().expect("No x coordinate");
-        let y = raw.next().expect("No y coordinate");
-        assert!(raw.next().is_none(), "Too many coordinates");
+        let mut raw = plist
+            .as_array()
+            .expect("point must be described by a tuple")
+            .iter()
+            .map(|v| v.as_f64().expect("coordinate must be a number"));
+        let x = raw.next().expect("point must have an x coordinate");
+        let y = raw.next().expect("point must have a y coordinate");
+        assert!(
+            raw.next().is_none(),
+            "point must have exactly two coordinates"
+        );
         Point::new(x, y)
     }
 }
 
 impl ToPlist for Point {
     fn to_plist(self) -> Plist {
-        format!("{{{}, {}}}", self.x, self.y).into()
+        format!("[{}, {}]", self.x, self.y).into()
+    }
+}
+
+impl FromPlist for Scale {
+    fn from_plist(plist: Plist) -> Self {
+        let mut raw = plist
+            .as_array()
+            .expect("scale must be described by a tuple")
+            .iter()
+            .map(|v| v.as_f64().expect("scale value must be a number"));
+        let horizontal = raw.next().expect("scale must have a horizontal value");
+        let vertical = raw.next().expect("scale must have a vertical value");
+        assert!(raw.next().is_none(), "scale must have exactly two values");
+        Self {
+            horizontal,
+            vertical,
+        }
+    }
+}
+
+impl ToPlist for Scale {
+    fn to_plist(self) -> Plist {
+        format!("[{}, {}]", self.horizontal, self.vertical).into()
     }
 }
 
