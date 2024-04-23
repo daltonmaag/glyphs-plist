@@ -2,7 +2,7 @@ extern crate proc_macro;
 
 use heck::ToLowerCamelCase;
 use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 use syn::{parse_macro_input, Attribute, Data, DeriveInput, Fields, LitStr};
 
@@ -183,7 +183,7 @@ fn add_ser_rest(data: &Data) -> TokenStream {
 
 fn is_rest(attrs: &[Attribute]) -> bool {
     attrs.iter().any(|attr| {
-        attr.path
+        attr.path()
             .get_ident()
             .map(|ident| ident == "rest")
             .unwrap_or(false)
@@ -193,7 +193,7 @@ fn is_rest(attrs: &[Attribute]) -> bool {
 fn get_name(attrs: &[Attribute]) -> Option<String> {
     attrs
         .iter()
-        .find(|attr| attr.path.is_ident("rename"))
+        .find(|attr| attr.path().is_ident("rename"))
         .map(|attr| {
             attr.parse_args::<LitStr>()
                 .expect("Could not parse 'rename' attribute as string literal")
@@ -201,9 +201,9 @@ fn get_name(attrs: &[Attribute]) -> Option<String> {
         })
 }
 
-fn get_default(attrs: &[Attribute]) -> Option<&TokenStream> {
+fn get_default(attrs: &[Attribute]) -> Option<TokenStream> {
     attrs
         .iter()
-        .find(|attr| attr.path.is_ident("default"))
-        .map(|attr| &attr.tokens)
+        .find(|attr| attr.path().is_ident("default"))
+        .map(|attr| attr.to_token_stream())
 }
