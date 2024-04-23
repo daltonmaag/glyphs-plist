@@ -62,12 +62,17 @@ pub struct Layer {
     pub associated_master_id: Option<String>,
     pub layer_id: String,
     pub width: f64,
+    pub vert_width: Option<f64>,
+    pub vert_origin: Option<f64>,
     pub shapes: Option<Vec<Shape>>,
     pub anchors: Option<Vec<Anchor>>,
     pub guide_lines: Option<Vec<GuideLine>>,
+    pub metric_top: Option<String>,
+    pub metric_bottom: Option<String>,
     pub metric_left: Option<String>,
     pub metric_right: Option<String>,
     pub metric_width: Option<String>,
+    pub metric_vert_width: Option<String>,
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
 }
