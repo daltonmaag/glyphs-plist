@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 
-use kurbo::{Affine, Point};
+use kurbo::Point;
 
 use crate::from_plist::FromPlist;
 use crate::plist::Plist;
@@ -43,13 +43,27 @@ pub struct Glyph {
     pub layers: Vec<Layer>,
     /// The name of the glyph.
     pub glyphname: norad::Name,
+    pub production: Option<String>,
+    pub script: Option<String>,
+    #[default(Default::default())]
+    pub tags: Vec<String>,
     // "public.kern1." kerning group, because the right side matters.
     pub kern_right: Option<norad::Name>,
     // "public.kern2." kerning group, because the left side matters.
     pub kern_left: Option<norad::Name>,
+    pub kern_top: Option<norad::Name>,
+    pub kern_bottom: Option<norad::Name>,
+    pub metric_top: Option<String>,
+    pub metric_bottom: Option<String>,
     pub metric_left: Option<String>,
     pub metric_right: Option<String>,
     pub metric_width: Option<String>,
+    #[default(Default::default())]
+    pub user_data: HashMap<String, Plist>,
+    #[default(true)]
+    pub export: bool,
+    pub color: Option<Color>,
+    pub note: Option<String>,
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
 }
@@ -511,32 +525,10 @@ impl NodeType {
 impl ToPlist for Node {
     fn to_plist(self) -> Plist {
         format!(
-            "{} {} {}",
+            "({}, {}, {})",
             self.pt.x,
             self.pt.y,
             self.node_type.glyphs_str()
-        )
-        .into()
-    }
-}
-
-impl FromPlist for Affine {
-    fn from_plist(plist: Plist) -> Self {
-        let raw = plist.as_str().unwrap();
-        let raw = &raw[1..raw.len() - 1];
-        let coords: Vec<f64> = raw.split(", ").map(|c| c.parse().unwrap()).collect();
-        Affine::new([
-            coords[0], coords[1], coords[2], coords[3], coords[4], coords[5],
-        ])
-    }
-}
-
-impl ToPlist for Affine {
-    fn to_plist(self) -> Plist {
-        let c = self.as_coeffs();
-        format!(
-            "{{{}, {}, {}, {}, {}, {}}}",
-            c[0], c[1], c[2], c[3], c[4], c[5]
         )
         .into()
     }
