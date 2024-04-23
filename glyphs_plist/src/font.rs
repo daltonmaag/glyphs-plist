@@ -19,19 +19,69 @@ pub struct Font {
     pub app_version: String,
     #[rename(".formatVersion")]
     pub format_version: Option<i64>,
+    pub date: String,
     pub family_name: String,
     pub version_major: i64,
     pub version_minor: i64,
     pub units_per_em: i64,
     pub glyphs: Vec<Glyph>,
     pub font_master: Vec<FontMaster>,
+    pub metrics: Vec<Metric>,
+    pub numbers: Option<Vec<FontNumbers>>,
+    pub stems: Option<Vec<FontStems>>,
+    pub settings: Option<Settings>,
     pub instances: Option<Vec<Instance>>,
     #[rename("kerningLTR")]
     pub kerning_ltr: Option<HashMap<String, norad::Kerning>>,
     #[rename("kerningRTL")]
     pub kerning_rtl: Option<HashMap<String, norad::Kerning>>,
-    pub disables_automatic_alignment: Option<bool>,
-    pub disables_nice_names: Option<bool>,
+    pub kerning_vertical: Option<HashMap<String, norad::Kerning>>,
+
+    #[rest]
+    pub other_stuff: HashMap<String, Plist>,
+}
+
+#[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
+pub struct Metric {
+    pub filter: Option<String>,
+    pub name: Option<String>,
+    #[rename("type")]
+    pub r#type: Option<MetricType>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum MetricType {
+    Ascender,
+    Baseline,
+    BodyHeight,
+    CapHeight,
+    Descender,
+    ItalicAngle,
+    MidHeight,
+    SlantHeight,
+    TopHeight,
+    XHeight,
+}
+
+#[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
+pub struct FontNumbers {
+    pub name: String,
+}
+
+#[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
+pub struct FontStems {
+    pub name: String,
+    pub filter: Option<String>,
+    pub horizontal: Option<i64>,
+}
+
+#[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
+pub struct Settings {
+    #[default(false)]
+    pub disables_automatic_alignment: bool,
+    #[default(false)]
+    pub disables_nice_names: bool,
+
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
 }
@@ -45,6 +95,10 @@ pub struct Glyph {
     pub glyphname: norad::Name,
     pub production: Option<String>,
     pub script: Option<String>,
+    pub direction: Option<Direction>,
+    pub case: Option<Case>,
+    pub category: Option<String>,
+    pub sub_category: Option<String>,
     #[default(Default::default())]
     pub tags: Vec<String>,
     // "public.kern1." kerning group, because the right side matters.
@@ -64,8 +118,27 @@ pub struct Glyph {
     pub export: bool,
     pub color: Option<Color>,
     pub note: Option<String>,
+
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Direction {
+    BIDI,
+    LTR,
+    RTL,
+    VTL,
+    VTR,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Case {
+    NoCase,
+    Upper,
+    Lower,
+    SmallCaps,
+    Other,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
@@ -92,6 +165,7 @@ pub struct Layer {
     #[default(Default::default())]
     pub user_data: HashMap<String, Plist>,
     pub color: Option<Color>,
+
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
 }
@@ -108,6 +182,7 @@ pub enum Color {
 pub struct LayerAttr {
     pub axis_rules: Option<Vec<AxisRules>>,
     pub coordinates: Option<Vec<f64>>,
+
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
 }
@@ -243,29 +318,23 @@ pub struct GuideLine {
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct FontMaster {
     pub id: String,
-    pub alignment_zones: Option<Vec<AlignmentZone>>,
-    pub ascender: Option<i64>,
-    pub cap_height: Option<i64>,
-    pub descender: Option<i64>,
-    pub x_height: Option<i64>,
-    pub italic_angle: Option<f64>,
-    // Glyphs.app 2.x will truncate floating point coordinates for sources to
-    // integers, 3.x will keep them as is. Likely an edge case, and we're moving
-    // to 3.x, anyway.
-    pub weight_value: Option<f64>,
-    pub width_value: Option<f64>,
-    pub custom_value: Option<f64>,
-    pub custom_value1: Option<f64>,
-    pub custom_value2: Option<f64>,
-    pub custom_value3: Option<f64>,
+    pub name: String,
+    pub metric_values: Vec<MasterMetric>,
+    pub number_values: Option<Vec<f64>>,
+    pub stem_values: Option<Vec<f64>>,
+    pub axes_values: Option<Vec<f64>>,
+    #[default(true)]
+    pub visible: bool,
+    #[default(Default::default())]
+    pub user_data: HashMap<String, Plist>,
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct AlignmentZone {
-    pub position: f64,
-    pub size: f64,
+#[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
+pub struct MasterMetric {
+    pos: Option<f64>,
+    over: Option<f64>,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
@@ -280,6 +349,7 @@ pub struct Instance {
     pub is_bold: Option<bool>,
     pub is_italic: Option<bool>,
     pub link_style: Option<String>,
+
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
 }
@@ -392,6 +462,108 @@ impl ToPlist for Color {
             Color::CMYKA(c, m, y, k, a) => {
                 Plist::Array(vec![c.into(), m.into(), y.into(), k.into(), a.into()])
             }
+        }
+    }
+}
+
+impl FromPlist for Direction {
+    fn from_plist(plist: Plist) -> Self {
+        match plist {
+            Plist::String(s) => match s.as_str() {
+                "BIDI" => Direction::BIDI,
+                "LTR" => Direction::LTR,
+                "RTL" => Direction::RTL,
+                "VTL" => Direction::VTL,
+                "VTR" => Direction::VTR,
+                _ => panic!("direction must be a string of 'BIDI', 'LTR', 'RTL', 'VTL' or 'VTR'"),
+            },
+            _ => {
+                panic!("direction must be a string of 'BIDI', 'LTR', 'RTL', 'VTL' or 'VTR'")
+            }
+        }
+    }
+}
+
+impl ToPlist for Direction {
+    fn to_plist(self) -> Plist {
+        match self {
+            Direction::BIDI => "BIDI".to_string().into(),
+            Direction::LTR => "LTR".to_string().into(),
+            Direction::RTL => "RTL".to_string().into(),
+            Direction::VTL => "VTL".to_string().into(),
+            Direction::VTR => "VTR".to_string().into(),
+        }
+    }
+}
+
+impl FromPlist for Case {
+    fn from_plist(plist: Plist) -> Self {
+        match plist {
+            Plist::String(s) => match s.as_str() {
+                "noCase" => Case::NoCase,
+                "upper" => Case::Upper,
+                "lower" => Case::Lower,
+                "smallCaps" => Case::SmallCaps,
+                "other" => Case::Other,
+                _ => panic!(
+                    "case must be a string of 'noCase', 'upper', 'lower', 'smallCaps', 'other'"
+                ),
+            },
+            _ => {
+                panic!("case must be a string of 'noCase', 'upper', 'lower', 'smallCaps', 'other'")
+            }
+        }
+    }
+}
+
+impl ToPlist for Case {
+    fn to_plist(self) -> Plist {
+        match self {
+            Case::NoCase => "noCase".to_string().into(),
+            Case::Upper => "upper".to_string().into(),
+            Case::Lower => "lower".to_string().into(),
+            Case::SmallCaps => "smallCaps".to_string().into(),
+            Case::Other => "other".to_string().into(),
+        }
+    }
+}
+
+impl FromPlist for MetricType {
+    fn from_plist(plist: Plist) -> Self {
+        match plist {
+            Plist::String(s) => match s.as_str() {
+                "ascender" => MetricType::Ascender,
+                "baseline" => MetricType::Baseline,
+                "bodyHeight" => MetricType::BodyHeight,
+                "cap height" => MetricType::CapHeight,
+                "descender" => MetricType::Descender,
+                "italic angle" => MetricType::ItalicAngle,
+                "midHeight" => MetricType::MidHeight,
+                "slant height" => MetricType::SlantHeight,
+                "topHeight" => MetricType::TopHeight,
+                "x-height" => MetricType::XHeight,
+                _ => panic!("metric type must be a string of 'ascender', 'cap height', 'slant height', 'x-height', 'midHeight', 'topHeight', 'bodyHeight', 'descender', 'baseline', 'italic angle'"),
+            },
+            _ => {
+                panic!("metric type must be a string of 'ascender', 'cap height', 'slant height', 'x-height', 'midHeight', 'topHeight', 'bodyHeight', 'descender', 'baseline', 'italic angle'")
+            }
+        }
+    }
+}
+
+impl ToPlist for MetricType {
+    fn to_plist(self) -> Plist {
+        match self {
+            MetricType::Ascender => "ascender".to_string().into(),
+            MetricType::Baseline => "baseline".to_string().into(),
+            MetricType::BodyHeight => "bodyHeight".to_string().into(),
+            MetricType::CapHeight => "cap height".to_string().into(),
+            MetricType::Descender => "descender".to_string().into(),
+            MetricType::ItalicAngle => "italic angle".to_string().into(),
+            MetricType::MidHeight => "midHeight".to_string().into(),
+            MetricType::SlantHeight => "slant height".to_string().into(),
+            MetricType::TopHeight => "topHeight".to_string().into(),
+            MetricType::XHeight => "x-height".to_string().into(),
         }
     }
 }
@@ -661,42 +833,6 @@ impl FromPlist for HashMap<String, norad::Kerning> {
         }
 
         kerning
-    }
-}
-
-impl FromPlist for AlignmentZone {
-    fn from_plist(plist: Plist) -> Self {
-        if let Plist::String(string) = plist {
-            let string = string
-                .strip_prefix('{')
-                .expect("Alignment zone must start with a '{'")
-                .strip_suffix('}')
-                .expect("Alignment zone must end with a '}'");
-            let mut iter = string.split(',').map(|s| s.trim());
-            let position = iter
-                .next()
-                .expect("Need two numbers in alignment zone")
-                .parse()
-                .expect("Alignment zone position must be a number");
-            let size = iter
-                .next()
-                .expect("Need two numbers in alignment zone")
-                .parse()
-                .expect("Alignment zone size must be a number");
-            assert!(
-                iter.next().is_none(),
-                "An alignment zone must have at most two numbers"
-            );
-            AlignmentZone { position, size }
-        } else {
-            panic!("Alignment zone {:?} must be a string", plist);
-        }
-    }
-}
-
-impl ToPlist for AlignmentZone {
-    fn to_plist(self) -> Plist {
-        Plist::String(format!("{{{}, {}}}", self.position, self.size))
     }
 }
 
