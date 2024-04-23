@@ -152,7 +152,8 @@ pub struct Layer {
     pub width: f64,
     pub vert_width: Option<f64>,
     pub vert_origin: Option<f64>,
-    pub shapes: Option<Vec<Shape>>,
+    #[default(Default::default())]
+    pub shapes: Vec<Shape>,
     pub anchors: Option<Vec<Anchor>>,
     pub guides: Option<Vec<GuideLine>>,
     pub metric_top: Option<String>,
@@ -197,7 +198,8 @@ pub struct AxisRules {
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct BackgroundLayer {
     pub anchors: Option<Vec<Anchor>>,
-    pub shapes: Option<Vec<Shape>>,
+    #[default(Default::default())]
+    pub shapes: Vec<Shape>,
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
 }
