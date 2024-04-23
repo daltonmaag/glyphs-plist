@@ -125,16 +125,16 @@ pub struct Glyph {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Direction {
-    BIDI,
-    LTR,
-    RTL,
-    VTL,
-    VTR,
+    Bidi,
+    Ltr,
+    Rtl,
+    Vtl,
+    Vtr,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Case {
-    NoCase,
+    None,
     Upper,
     Lower,
     SmallCaps,
@@ -172,10 +172,10 @@ pub struct Layer {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Color {
-    ColorIndex(i64),
+    Index(i64),
     GreyAlpha(u8, u8),
-    RGBA(u8, u8, u8, u8),
-    CMYKA(u8, u8, u8, u8, u8),
+    Rgba(u8, u8, u8, u8),
+    Cmyka(u8, u8, u8, u8, u8),
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
@@ -203,7 +203,7 @@ pub struct BackgroundLayer {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Shape {
-    Path(Path),
+    Path(Box<Path>),
     Component(Component),
 }
 
@@ -428,7 +428,7 @@ impl ToPlist for AnchorOrientation {
 impl FromPlist for Color {
     fn from_plist(plist: Plist) -> Self {
         match plist {
-            Plist::Integer(int) => Color::ColorIndex(int),
+            Plist::Integer(int) => Color::Index(int),
             Plist::Array(array) => {
                 let numbers: Vec<u8> = array
                     .iter()
@@ -439,10 +439,10 @@ impl FromPlist for Color {
                             .expect("color numbers must be in range 0–255")
                     })
                     .collect();
-                match numbers.as_slice() {
-                    &[g, a] => Color::GreyAlpha(g, a),
-                    &[r, g, b, a] => Color::RGBA(r, g, b, a),
-                    &[c, m, y, k, a] => Color::CMYKA(c, m, y, k, a),
+                match *numbers.as_slice() {
+                    [g, a] => Color::GreyAlpha(g, a),
+                    [r, g, b, a] => Color::Rgba(r, g, b, a),
+                    [c, m, y, k, a] => Color::Cmyka(c, m, y, k, a),
                     _ => panic!(
                         "color array must contain 2 (gray, alpha), 4 (RGBA) or 5 (CMYKA) numbers"
                     ),
@@ -456,10 +456,10 @@ impl FromPlist for Color {
 impl ToPlist for Color {
     fn to_plist(self) -> Plist {
         match self {
-            Color::ColorIndex(int) => int.into(),
+            Color::Index(int) => int.into(),
             Color::GreyAlpha(g, a) => Plist::Array(vec![g.into(), a.into()]),
-            Color::RGBA(r, g, b, a) => Plist::Array(vec![r.into(), g.into(), b.into(), a.into()]),
-            Color::CMYKA(c, m, y, k, a) => {
+            Color::Rgba(r, g, b, a) => Plist::Array(vec![r.into(), g.into(), b.into(), a.into()]),
+            Color::Cmyka(c, m, y, k, a) => {
                 Plist::Array(vec![c.into(), m.into(), y.into(), k.into(), a.into()])
             }
         }
@@ -470,11 +470,11 @@ impl FromPlist for Direction {
     fn from_plist(plist: Plist) -> Self {
         match plist {
             Plist::String(s) => match s.as_str() {
-                "BIDI" => Direction::BIDI,
-                "LTR" => Direction::LTR,
-                "RTL" => Direction::RTL,
-                "VTL" => Direction::VTL,
-                "VTR" => Direction::VTR,
+                "BIDI" => Direction::Bidi,
+                "LTR" => Direction::Ltr,
+                "RTL" => Direction::Rtl,
+                "VTL" => Direction::Vtl,
+                "VTR" => Direction::Vtr,
                 _ => panic!("direction must be a string of 'BIDI', 'LTR', 'RTL', 'VTL' or 'VTR'"),
             },
             _ => {
@@ -487,11 +487,11 @@ impl FromPlist for Direction {
 impl ToPlist for Direction {
     fn to_plist(self) -> Plist {
         match self {
-            Direction::BIDI => "BIDI".to_string().into(),
-            Direction::LTR => "LTR".to_string().into(),
-            Direction::RTL => "RTL".to_string().into(),
-            Direction::VTL => "VTL".to_string().into(),
-            Direction::VTR => "VTR".to_string().into(),
+            Direction::Bidi => "BIDI".to_string().into(),
+            Direction::Ltr => "LTR".to_string().into(),
+            Direction::Rtl => "RTL".to_string().into(),
+            Direction::Vtl => "VTL".to_string().into(),
+            Direction::Vtr => "VTR".to_string().into(),
         }
     }
 }
@@ -500,7 +500,7 @@ impl FromPlist for Case {
     fn from_plist(plist: Plist) -> Self {
         match plist {
             Plist::String(s) => match s.as_str() {
-                "noCase" => Case::NoCase,
+                "noCase" => Case::None,
                 "upper" => Case::Upper,
                 "lower" => Case::Lower,
                 "smallCaps" => Case::SmallCaps,
@@ -519,7 +519,7 @@ impl FromPlist for Case {
 impl ToPlist for Case {
     fn to_plist(self) -> Plist {
         match self {
-            Case::NoCase => "noCase".to_string().into(),
+            Case::None => "noCase".to_string().into(),
             Case::Upper => "upper".to_string().into(),
             Case::Lower => "lower".to_string().into(),
             Case::SmallCaps => "smallCaps".to_string().into(),
@@ -575,7 +575,7 @@ impl FromPlist for Shape {
                 if dict.contains_key("ref") {
                     Shape::Component(FromPlist::from_plist(Plist::Dictionary(dict)))
                 } else {
-                    Shape::Path(FromPlist::from_plist(Plist::Dictionary(dict)))
+                    Shape::Path(Box::new(FromPlist::from_plist(Plist::Dictionary(dict))))
                 }
             }
             _ => panic!("Cannot parse shape '{:?}'", plist),
@@ -586,7 +586,7 @@ impl FromPlist for Shape {
 impl ToPlist for Shape {
     fn to_plist(self) -> Plist {
         match self {
-            Shape::Path(path) => ToPlist::to_plist(path),
+            Shape::Path(path) => ToPlist::to_plist(*path),
             Shape::Component(component) => ToPlist::to_plist(component),
         }
     }
