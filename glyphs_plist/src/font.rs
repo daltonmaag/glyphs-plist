@@ -72,7 +72,8 @@ pub struct FontNumbers {
 pub struct FontStems {
     pub name: String,
     pub filter: Option<String>,
-    pub horizontal: Option<i64>,
+    #[default(false)]
+    pub horizontal: bool,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
@@ -340,18 +341,32 @@ pub struct MasterMetric {
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Instance {
     pub name: String,
-    pub interpolation_weight: Option<f64>,
-    pub interpolation_width: Option<f64>,
-    pub interpolation_custom: Option<f64>,
-    pub interpolation_custom1: Option<f64>,
-    pub interpolation_custom2: Option<f64>,
-    pub interpolation_custom3: Option<f64>,
-    pub is_bold: Option<bool>,
-    pub is_italic: Option<bool>,
+    pub axes_values: Option<Vec<f64>>,
+    #[default(true)]
+    pub exports: bool,
+    #[default(false)]
+    pub is_bold: bool,
+    #[default(false)]
+    pub is_italic: bool,
     pub link_style: Option<String>,
+    #[rename("type")]
+    r#type: Option<InstanceType>,
+    #[default(Default::default())]
+    pub user_data: HashMap<String, Plist>,
+    #[default(true)]
+    pub visible: bool,
+    #[default(400)]
+    pub weight_class: i64,
+    #[default(5)]
+    pub width_class: i64,
 
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum InstanceType {
+    Variable,
 }
 
 impl Font {
@@ -564,6 +579,28 @@ impl ToPlist for MetricType {
             MetricType::SlantHeight => "slant height".to_string().into(),
             MetricType::TopHeight => "topHeight".to_string().into(),
             MetricType::XHeight => "x-height".to_string().into(),
+        }
+    }
+}
+
+impl FromPlist for InstanceType {
+    fn from_plist(plist: Plist) -> Self {
+        match plist {
+            Plist::String(s) => match s.as_str() {
+                "variable" => InstanceType::Variable,
+                _ => panic!("instance type type must be a string of 'variable'"),
+            },
+            _ => {
+                panic!("instance type type must be a string of 'variable'")
+            }
+        }
+    }
+}
+
+impl ToPlist for InstanceType {
+    fn to_plist(self) -> Plist {
+        match self {
+            InstanceType::Variable => "variable".to_string().into(),
         }
     }
 }
