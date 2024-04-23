@@ -1,5 +1,6 @@
 extern crate proc_macro;
 
+use heck::ToLowerCamelCase;
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
@@ -81,7 +82,7 @@ fn add_deser(data: &Data) -> DeserialisedFields {
                         let name = &f.ident;
                         let name_str = name.as_ref().unwrap().to_string();
                         let plist_name =
-                            get_name(&f.attrs).unwrap_or_else(|| snake_to_camel_case(&name_str));
+                            get_name(&f.attrs).unwrap_or_else(|| name_str.to_lower_camel_case());
                         let default = get_default(&f.attrs);
                         match default {
                             Some(default) => quote_spanned! {f.span() =>
@@ -140,7 +141,7 @@ fn add_ser(data: &Data) -> TokenStream {
                         let name = &f.ident;
                         let name_str = name.as_ref().unwrap().to_string();
                         let plist_name =
-                            get_name(&f.attrs).unwrap_or_else(|| snake_to_camel_case(&name_str));
+                            get_name(&f.attrs).unwrap_or_else(|| name_str.to_lower_camel_case());
                         Some(quote_spanned! {f.span() =>
                             if let Some(plist) = crate::to_plist::ToPlistOpt::to_plist(self.#name) {
                                 hashmap.insert(#plist_name.to_string(), plist);
@@ -206,36 +207,3 @@ fn get_default(attrs: &[Attribute]) -> Option<&TokenStream> {
         .find(|attr| attr.path.is_ident("default"))
         .map(|attr| &attr.tokens)
 }
-
-fn snake_to_camel_case(id: &str) -> String {
-    let mut result = String::new();
-    let mut hump = false;
-    for c in id.chars() {
-        if c == '_' {
-            hump = true;
-        } else {
-            if hump {
-                result.push(c.to_ascii_uppercase());
-            } else {
-                result.push(c);
-            }
-            hump = false;
-        }
-    }
-    result
-}
-
-/*
-fn to_snake_case(id: &str) -> String {
-    let mut result = String::new();
-    for c in id.chars() {
-        if c.is_ascii_uppercase() {
-            result.push('_');
-            result.push(c.to_ascii_lowercase());
-        } else {
-            result.push(c);
-        }
-    }
-    result
-}
-*/
