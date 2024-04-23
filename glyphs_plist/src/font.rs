@@ -673,7 +673,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = r#"unrecognised fields: ["bar"]"#)]
+    #[should_panic(expected = r#"unrecognised fields in FooBar: ["bar"]"#)]
     fn panics_on_unexpected_fields() {
         #[derive(FromPlist)]
         struct FooBar {

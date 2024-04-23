@@ -35,7 +35,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     let result = #name {
                         #fields
                     };
-                    assert!(hashmap.is_empty(), "unrecognised fields: {:?}", hashmap.keys());
+                    assert!(hashmap.is_empty(), "unrecognised fields in {}: {:?}", stringify!(#name), hashmap.keys());
                     result
                 }
             }
