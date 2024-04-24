@@ -917,7 +917,7 @@ mod tests {
     fn parse_format3_example() {
         let font = Font::load("testdata/GlyphsFileFormatv3.glyphs").unwrap();
 
-        assert_eq!(font.app_version, "3180");
+        assert_eq!(font.app_version, "3259");
         assert_eq!(font.format_version, Some(3));
 
         assert!(!font.other_stuff.contains_key(".appVersion"));

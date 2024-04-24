@@ -1,5 +1,5 @@
 {
-.appVersion = "3180";
+.appVersion = "3259";
 .formatVersion = 3;
 DisplayStrings = (
 "/Smily",
@@ -102,18 +102,18 @@ value = "600";
 );
 guides = (
 {
-orientation = right;
 angle = 24.582;
 lockAngle = 1;
 locked = 1;
 name = "guide name";
+orientation = right;
 pos = (-25,193);
 showMeasurement = 1;
 },
 {
-orientation = right;
 angle = 90;
 filter = "category == \"Letter\"";
+orientation = right;
 pos = (-34,271);
 }
 );
@@ -145,6 +145,8 @@ pos = 550;
 {
 over = 12;
 pos = 123;
+},
+{
 }
 );
 name = Regular;
@@ -208,9 +210,12 @@ pos = 550;
 {
 over = 12;
 pos = 123;
+},
+{
+pos = 12;
 }
 );
-name = Black;
+name = "Black Italic";
 numberValues = (
 123
 );
@@ -267,8 +272,8 @@ name = "guide name";
 pos = (186,310);
 },
 {
-orientation = right;
 angle = 90;
+orientation = right;
 pos = (-74,271);
 }
 );
@@ -646,6 +651,7 @@ angle = 20;
 attr = {
 reversePaths = 1;
 };
+pos = (-11,0);
 ref = A;
 scale = (0.8,0.8);
 }
@@ -764,7 +770,7 @@ layers = (
 backgroundImage = {
 angle = 3;
 crop = (41.425,42.805,503.416,507.56);
-imagePath = files/Smily.png;
+imagePath = "files/Smily.png";
 pos = (61,90);
 scale = (0.529,0.8);
 };
@@ -794,7 +800,7 @@ max = 450;
 backgroundImage = {
 angle = 3;
 crop = (0,0,140,160);
-imagePath = files/Smily.png;
+imagePath = "files/Smily.png";
 locked = 1;
 pos = (106,89);
 scale = (0.9,0.8);
@@ -893,7 +899,7 @@ attr = {
 svg = 1;
 };
 backgroundImage = {
-imagePath = files/Smily.svg;
+imagePath = "files/Smily.svg";
 };
 layerId = "3FEDB0F1-E3ED-423F-8080-03A25A363A56";
 name = "25. Feb. 23, 15:53";
@@ -1550,6 +1556,10 @@ isItalic = 1;
 name = Regular;
 properties = (
 {
+key = designerURL;
+value = www.designer.com;
+},
+{
 key = familyNames;
 values = (
 {
@@ -1561,10 +1571,6 @@ language = DEU;
 value = "Instance Familienname";
 }
 );
-},
-{
-key = designerURL;
-value = www.designer.com;
 }
 );
 userData = {
@@ -1658,6 +1664,10 @@ type = "x-height";
 },
 {
 name = "A custom metric";
+},
+{
+name = "ita an";
+type = "italic angle";
 }
 );
 note = "a font note";
@@ -1668,6 +1678,15 @@ name = "Some Number";
 );
 properties = (
 {
+key = compatibleFullNames;
+values = (
+{
+language = dflt;
+value = "Compatible Full Name 1";
+}
+);
+},
+{
 key = copyrights;
 values = (
 {
@@ -1677,15 +1696,6 @@ value = "Default Copyright1";
 {
 language = DEU;
 value = "Deutsches Copyright";
-}
-);
-},
-{
-key = compatibleFullNames;
-values = (
-{
-language = dflt;
-value = "Compatible Full Name 1";
 }
 );
 },
