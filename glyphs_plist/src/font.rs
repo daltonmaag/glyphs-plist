@@ -200,6 +200,7 @@ pub struct BackgroundLayer {
     pub anchors: Option<Vec<Anchor>>,
     #[default(Default::default())]
     pub shapes: Vec<Shape>,
+
     #[rest]
     pub other_stuff: HashMap<String, Plist>,
 }
@@ -336,8 +337,8 @@ pub struct FontMaster {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct MasterMetric {
-    pos: Option<f64>,
-    over: Option<f64>,
+    pub pos: Option<f64>,
+    pub over: Option<f64>,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
@@ -352,7 +353,7 @@ pub struct Instance {
     pub is_italic: bool,
     pub link_style: Option<String>,
     #[rename("type")]
-    r#type: Option<InstanceType>,
+    pub r#type: Option<InstanceType>,
     #[default(Default::default())]
     pub user_data: HashMap<String, Plist>,
     #[default(true)]
@@ -403,6 +404,19 @@ impl Font {
 impl Glyph {
     pub fn get_layer(&self, layer_id: &str) -> Option<&Layer> {
         self.layers.iter().find(|l| l.layer_id == layer_id)
+    }
+}
+
+impl FontMaster {
+    /// Iterate over metric "keys" (global) and "values" (per-master).
+    ///
+    /// If one master does not have a last value that some other master has, the
+    /// iterator returns early.
+    pub fn iter_metrics<'a>(
+        &'a self,
+        font: &'a Font,
+    ) -> impl Iterator<Item = (&Metric, &MasterMetric)> {
+        font.metrics.iter().zip(self.metric_values.iter())
     }
 }
 
@@ -585,20 +599,26 @@ impl FromPlist for MetricType {
     }
 }
 
+impl std::fmt::Display for MetricType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MetricType::Ascender => write!(f, "ascender"),
+            MetricType::Baseline => write!(f, "baseline"),
+            MetricType::BodyHeight => write!(f, "bodyHeight"),
+            MetricType::CapHeight => write!(f, "cap height"),
+            MetricType::Descender => write!(f, "descender"),
+            MetricType::ItalicAngle => write!(f, "italic angle"),
+            MetricType::MidHeight => write!(f, "midHeight"),
+            MetricType::SlantHeight => write!(f, "slant height"),
+            MetricType::TopHeight => write!(f, "topHeight"),
+            MetricType::XHeight => write!(f, "x-height"),
+        }
+    }
+}
+
 impl ToPlist for MetricType {
     fn to_plist(self) -> Plist {
-        match self {
-            MetricType::Ascender => "ascender".to_string().into(),
-            MetricType::Baseline => "baseline".to_string().into(),
-            MetricType::BodyHeight => "bodyHeight".to_string().into(),
-            MetricType::CapHeight => "cap height".to_string().into(),
-            MetricType::Descender => "descender".to_string().into(),
-            MetricType::ItalicAngle => "italic angle".to_string().into(),
-            MetricType::MidHeight => "midHeight".to_string().into(),
-            MetricType::SlantHeight => "slant height".to_string().into(),
-            MetricType::TopHeight => "topHeight".to_string().into(),
-            MetricType::XHeight => "x-height".to_string().into(),
-        }
+        self.to_string().into()
     }
 }
 
