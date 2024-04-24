@@ -1,12 +1,11 @@
 extern crate proc_macro;
 
-use heck::ToLowerCamelCase;
 use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{parse_macro_input, Attribute, Data, DeriveInput, Fields, LitStr};
 
-#[proc_macro_derive(FromPlist, attributes(rest, rename, default))]
+#[proc_macro_derive(FromPlist, attributes(rest, rename))]
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
@@ -74,33 +73,21 @@ fn add_deser(data: &Data) -> DeserialisedFields {
     match *data {
         Data::Struct(ref data) => match data.fields {
             Fields::Named(ref fields) => {
-                let recurse = fields
-                    .named
-                    .iter()
-                    .filter(|field| !is_rest(&field.attrs))
-                    .map(|f| {
+                let recurse = fields.named.iter().filter_map(|f| {
+                    if !is_rest(&f.attrs) {
                         let name = &f.ident;
                         let name_str = name.as_ref().unwrap().to_string();
                         let plist_name =
-                            get_name(&f.attrs).unwrap_or_else(|| name_str.to_lower_camel_case());
-                        let default = get_default(&f.attrs);
-                        match default {
-                            Some(default) => quote_spanned! {f.span() =>
-                                #[allow(unused_parens, clippy::double_parens)]
-                                #name: hashmap
-                                    .remove(#plist_name)
-                                    .map(Some)
-                                    .map(crate::from_plist::FromPlistOpt::from_plist)
-                                    .unwrap_or_else(|| #default),
-                            },
-                            None => quote_spanned! {f.span() =>
-                                #name: crate::from_plist::FromPlistOpt::from_plist(
-                                    hashmap.remove(#plist_name)
-                                ),
-                            },
-                        }
-                    });
-
+                            get_name(&f.attrs).unwrap_or_else(|| snake_to_camel_case(&name_str));
+                        Some(quote_spanned! {f.span() =>
+                            #name: crate::from_plist::FromPlistOpt::from_plist(
+                                hashmap.remove(#plist_name)
+                            ),
+                        })
+                    } else {
+                        None
+                    }
+                });
                 let recurse_rest = fields.named.iter().find_map(|f| {
                     if is_rest(&f.attrs) {
                         let name = &f.ident;
@@ -141,7 +128,7 @@ fn add_ser(data: &Data) -> TokenStream {
                         let name = &f.ident;
                         let name_str = name.as_ref().unwrap().to_string();
                         let plist_name =
-                            get_name(&f.attrs).unwrap_or_else(|| name_str.to_lower_camel_case());
+                            get_name(&f.attrs).unwrap_or_else(|| snake_to_camel_case(&name_str));
                         Some(quote_spanned! {f.span() =>
                             if let Some(plist) = crate::to_plist::ToPlistOpt::to_plist(self.#name) {
                                 hashmap.insert(#plist_name.to_string(), plist);
@@ -201,9 +188,35 @@ fn get_name(attrs: &[Attribute]) -> Option<String> {
         })
 }
 
-fn get_default(attrs: &[Attribute]) -> Option<TokenStream> {
-    attrs
-        .iter()
-        .find(|attr| attr.path().is_ident("default"))
-        .map(|attr| attr.to_token_stream())
+fn snake_to_camel_case(id: &str) -> String {
+    let mut result = String::new();
+    let mut hump = false;
+    for c in id.chars() {
+        if c == '_' {
+            hump = true;
+        } else {
+            if hump {
+                result.push(c.to_ascii_uppercase());
+            } else {
+                result.push(c);
+            }
+            hump = false;
+        }
+    }
+    result
 }
+
+/*
+fn to_snake_case(id: &str) -> String {
+    let mut result = String::new();
+    for c in id.chars() {
+        if c.is_ascii_uppercase() {
+            result.push('_');
+            result.push(c.to_ascii_lowercase());
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+*/

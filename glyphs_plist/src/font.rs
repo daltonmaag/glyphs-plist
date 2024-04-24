@@ -968,17 +968,4 @@ mod tests {
 
         FooBar::from_plist(with_unexpected);
     }
-
-    #[test]
-    fn populates_default_values() {
-        #[derive(FromPlist)]
-        struct FooBar {
-            #[default(2 + 2)]
-            has_default: i64,
-        }
-
-        let FooBar { has_default } = FooBar::from_plist(Plist::Dictionary(Default::default()));
-
-        assert_eq!(has_default, 4);
-    }
 }
