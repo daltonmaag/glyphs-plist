@@ -27,6 +27,7 @@ pub struct Font {
     pub glyphs: Vec<Glyph>,
     pub font_master: Vec<FontMaster>,
     pub metrics: Vec<Metric>,
+    pub axes: Option<Vec<Axis>>,
     pub numbers: Option<Vec<FontNumbers>>,
     pub stems: Option<Vec<FontStems>>,
     pub settings: Option<Settings>,
@@ -39,6 +40,14 @@ pub struct Font {
 
     #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
+}
+
+#[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
+pub struct Axis {
+    pub name: String,
+    pub tag: String,
+    #[plist(default)]
+    pub hidden: bool,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
