@@ -15,6 +15,14 @@ axes = (
 hidden = 1;
 name = Weight;
 tag = wght;
+},
+{
+name = Width;
+tag = wdth;
+},
+{
+name = "Optical size";
+tag = opsz;
 }
 );
 classes = (
@@ -92,7 +100,9 @@ tag = ss01;
 fontMaster = (
 {
 axesValues = (
-100
+100,
+0,
+0
 );
 customParameters = (
 {
@@ -165,7 +175,9 @@ visible = 1;
 },
 {
 axesValues = (
-900
+900,
+0,
+0
 );
 customParameters = (
 {
@@ -224,6 +236,94 @@ stemValues = (
 321,
 234
 );
+},
+{
+axesValues = (
+100,
+150,
+0
+);
+id = "74B5DD59-F76E-4ABE-885C-483A9EE6B546";
+metricValues = (
+{
+over = 16;
+pos = 800;
+},
+{
+over = 16;
+pos = 700;
+},
+{
+over = 16;
+pos = 500;
+},
+{
+over = -16;
+},
+{
+over = -16;
+pos = -200;
+},
+{
+},
+{
+},
+{
+}
+);
+name = Wide;
+numberValues = (
+0
+);
+stemValues = (
+0,
+0,
+0
+);
+},
+{
+axesValues = (
+100,
+50,
+0
+);
+id = "7C106654-D6EA-4B48-B630-2BDE74C0D45C";
+metricValues = (
+{
+over = 16;
+pos = 800;
+},
+{
+over = 16;
+pos = 700;
+},
+{
+over = 16;
+pos = 500;
+},
+{
+over = -16;
+},
+{
+over = -16;
+pos = -200;
+},
+{
+},
+{
+},
+{
+}
+);
+name = Narrow;
+numberValues = (
+0
+);
+stemValues = (
+0,
+0,
+0
+);
 }
 );
 glyphs = (
@@ -234,7 +334,7 @@ kernBottom = A;
 kernLeft = A;
 kernRight = A;
 kernTop = A;
-lastChange = "2023-02-25 14:46:49 +0000";
+lastChange = "2024-04-25 11:08:32 +0000";
 layers = (
 {
 anchors = (
@@ -433,6 +533,14 @@ nodes = (
 }
 );
 width = 459;
+},
+{
+layerId = "74B5DD59-F76E-4ABE-885C-483A9EE6B546";
+width = 600;
+},
+{
+layerId = "7C106654-D6EA-4B48-B630-2BDE74C0D45C";
+width = 600;
 }
 );
 metricLeft = "=10";
@@ -664,6 +772,10 @@ attr = {
 axisRules = (
 {
 min = 450;
+},
+{
+},
+{
 }
 );
 };
@@ -713,6 +825,10 @@ attr = {
 axisRules = (
 {
 min = 450;
+},
+{
+},
+{
 }
 );
 };
@@ -794,6 +910,10 @@ attr = {
 axisRules = (
 {
 max = 450;
+},
+{
+},
+{
 }
 );
 };
@@ -815,6 +935,10 @@ attr = {
 axisRules = (
 {
 max = 450;
+},
+{
+},
+{
 }
 );
 };
@@ -1391,7 +1515,7 @@ topValue = 100;
 {
 category = Icon;
 glyphname = Smily;
-lastChange = "2023-02-25 15:00:15 +0000";
+lastChange = "2024-04-25 11:24:52 +0000";
 layers = (
 {
 attr = {
@@ -1480,13 +1604,74 @@ width = 600;
 associatedMasterId = m01;
 attr = {
 coordinates = (
-450
+450,
+0,
+0
 );
 };
 layerId = "403102FA-569E-44B5-9F7D-836F0E7D2DAD";
 name = "25. Feb. 23, 15:21";
 vertWidth = 600;
 visible = 1;
+width = 600;
+},
+{
+associatedMasterId = "C2ECF50A-02EF-4989-A14C-AF8E838D1105";
+attr = {
+coordinates = (
+6,
+0.123,
+0
+);
+};
+layerId = "89B02DA8-2AE3-4DCE-B67F-1B5963597B41";
+name = "Black Italic 25 Apr 24 at 12:07";
+shapes = (
+{
+attr = {
+fillColor = (255,211,55,255);
+strokeColor = (64,255);
+strokeWidth = 20;
+};
+closed = 1;
+nodes = (
+(424,63,o),
+(530,168,o),
+(530,299,cs),
+(530,429,o),
+(424,535,o),
+(294,535,cs),
+(163,535,o),
+(58,429,o),
+(58,299,cs),
+(58,168,o),
+(163,63,o),
+(294,63,cs)
+);
+}
+);
+userData = {
+com.GeorgSeifert.ImageExportSettings = {
+path = "..";
+presets = (
+{
+filename = "{{{glyph.name}}}";
+format = SVG;
+name = default;
+size = 600;
+}
+);
+};
+};
+vertWidth = 600;
+width = 600;
+},
+{
+layerId = "74B5DD59-F76E-4ABE-885C-483A9EE6B546";
+width = 600;
+},
+{
+layerId = "7C106654-D6EA-4B48-B630-2BDE74C0D45C";
 width = 600;
 }
 );
@@ -1533,7 +1718,9 @@ type = variable;
 },
 {
 axesValues = (
-123
+123,
+0,
+0
 );
 customParameters = (
 {
@@ -1579,7 +1766,9 @@ userData = {
 },
 {
 axesValues = (
-723
+723,
+0,
+0
 );
 customParameters = (
 {
