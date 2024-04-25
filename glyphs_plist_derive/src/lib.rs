@@ -2,6 +2,7 @@ extern crate proc_macro;
 
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
+use syn::ext::IdentExt;
 use syn::spanned::Spanned;
 use syn::{parse_macro_input, Attribute, Data, DeriveInput, Fields, LitStr};
 
@@ -157,13 +158,16 @@ fn add_deser(data: &Data) -> DeserialisedFields {
         .map(|field| (field, PlistAttribute::from(field.attrs.as_slice())))
         .filter_map(|(field, options)| {
             let field_name = field.ident.as_ref().unwrap();
+            let camel_case_field_name = || {
+                let unraw = field_name.unraw().to_string();
+                snake_to_camel_case(&unraw)
+            };
             match options {
                 PlistAttribute::Standard(PlistAttributeInner {
                     serialised_name,
                     default,
                 }) => {
-                    let plist_name = serialised_name
-                        .unwrap_or_else(|| snake_to_camel_case(&field_name.to_string()));
+                    let plist_name = serialised_name.unwrap_or_else(camel_case_field_name);
                     let tokens = match default {
                         Some(default) => quote_spanned! {field.span()=>
                             #field_name: hashmap.remove(#plist_name)
@@ -181,7 +185,7 @@ fn add_deser(data: &Data) -> DeserialisedFields {
                     Some(tokens)
                 }
                 PlistAttribute::None => {
-                    let plist_name = snake_to_camel_case(&field_name.to_string());
+                    let plist_name = camel_case_field_name();
                     Some(quote_spanned! {field.span()=>
                         #field_name: crate::from_plist::FromPlistOpt::from_plist(
                             hashmap.remove(#plist_name)
@@ -293,6 +297,7 @@ fn get_name(attrs: &[Attribute]) -> Option<String> {
         })
 }
 
+// TODO: re-add heck
 fn snake_to_camel_case(id: &str) -> String {
     let mut result = String::new();
     let mut hump = false;

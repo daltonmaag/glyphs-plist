@@ -45,7 +45,6 @@ pub struct Font {
 pub struct Metric {
     pub filter: Option<String>,
     pub name: Option<String>,
-    #[plist(rename = "type")]
     pub r#type: Option<MetricType>,
 }
 
@@ -243,7 +242,6 @@ pub struct PathGradient {
     pub colors: Vec<Vec<Color>>, // TODO: Destructure this once relevant.
     pub start: Point,
     pub end: Point,
-    #[plist(rename = "type")]
     pub r#type: String, // TODO: Make enum once relevant.
 }
 
@@ -349,7 +347,6 @@ pub struct Instance {
     #[plist(default)]
     pub is_italic: bool,
     pub link_style: Option<String>,
-    #[plist(rename = "type")] // TODO: this shouldn't need a rename
     r#type: Option<InstanceType>,
     #[plist(default)]
     pub user_data: HashMap<String, Plist>,
