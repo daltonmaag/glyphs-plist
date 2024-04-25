@@ -230,70 +230,59 @@ fn add_deser(data: &Data) -> DeserialisedFields {
 }
 
 fn add_ser(data: &Data) -> TokenStream {
-    match *data {
-        Data::Struct(ref data) => match data.fields {
-            Fields::Named(ref fields) => {
-                let recurse = fields.named.iter().filter_map(|f| {
-                    if !is_rest(&f.attrs) {
-                        let name = &f.ident;
-                        let name_str = name.as_ref().unwrap().to_string();
-                        let plist_name =
-                            get_name(&f.attrs).unwrap_or_else(|| name_str.to_lower_camel_case());
-                        Some(quote_spanned! {f.span() =>
-                            if let Some(plist) = crate::to_plist::ToPlistOpt::to_plist(self.#name) {
-                                hashmap.insert(#plist_name.to_string(), plist);
-                            }
-                        })
-                    } else {
-                        None
-                    }
-                });
-                quote! {
-                    #( #recurse )*
+    let Data::Struct(data) = data else {
+        unimplemented!("only structs");
+    };
+    let Fields::Named(fields) = &data.fields else {
+        unimplemented!("only structs with named fields");
+    };
+    let recurse = fields
+        .named
+        .iter()
+        .map(|field| (field, PlistAttribute::from(field.attrs.as_slice())))
+        .filter_map(|(field, options)| {
+            let field_name = field.ident.as_ref().unwrap();
+            let plist_name = match options {
+                PlistAttribute::Standard(PlistAttributeInner {
+                    serialised_name: Some(plist_name),
+                    ..
+                }) => plist_name,
+                PlistAttribute::Standard(PlistAttributeInner {
+                    serialised_name: None,
+                    ..
+                })
+                | PlistAttribute::None => field_name.unraw().to_string().to_lower_camel_case(),
+                PlistAttribute::Rest => return None,
+            };
+            Some(quote_spanned! {field.span()=>
+                if let Some(plist) = crate::to_plist::ToPlistOpt::to_plist(self.#field_name) {
+                    hashmap.insert(String::from(#plist_name), plist);
                 }
-            }
-            _ => unimplemented!(),
-        },
-        _ => unimplemented!(),
+            })
+        });
+    quote! {
+        #( #recurse )*
     }
 }
 
 fn add_ser_rest(data: &Data) -> TokenStream {
-    match *data {
-        Data::Struct(ref data) => match data.fields {
-            Fields::Named(ref fields) => {
-                for f in fields.named.iter() {
-                    if is_rest(&f.attrs) {
-                        let name = &f.ident;
-                        return quote_spanned! { f.span() =>
-                            let mut hashmap = self.#name;
-                        };
-                    }
-                }
-                quote! { let mut hashmap = HashMap::new(); }
-            }
-            _ => unimplemented!(),
-        },
-        _ => unimplemented!(),
-    }
-}
-
-fn is_rest(attrs: &[Attribute]) -> bool {
-    attrs.iter().any(|attr| {
-        attr.path()
-            .get_ident()
-            .map(|ident| ident == "rest")
-            .unwrap_or(false)
-    })
-}
-
-fn get_name(attrs: &[Attribute]) -> Option<String> {
-    attrs
+    let Data::Struct(data) = data else {
+        unimplemented!("only structs");
+    };
+    let Fields::Named(fields) = &data.fields else {
+        unimplemented!("only structs with named fields");
+    };
+    fields
+        .named
         .iter()
-        .find(|attr| attr.path().is_ident("rename"))
-        .map(|attr| {
-            attr.parse_args::<LitStr>()
-                .expect("Could not parse 'rename' attribute as string literal")
-                .value()
+        .find(|field| {
+            matches!(
+                PlistAttribute::from(field.attrs.as_slice()),
+                PlistAttribute::Rest,
+            )
+        })
+        .map_or(quote! { let mut hashmap = HashMap::new(); }, |field| {
+            let name = field.ident.as_ref().unwrap();
+            quote_spanned! { field.span()=> let mut hashmap = self.#name; }
         })
 }
