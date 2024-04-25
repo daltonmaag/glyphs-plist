@@ -769,13 +769,11 @@ impl NodeType {
 
 impl ToPlist for Node {
     fn to_plist(self) -> Plist {
-        format!(
-            "({}, {}, {})",
-            self.pt.x,
-            self.pt.y,
-            self.node_type.glyphs_str()
-        )
-        .into()
+        Plist::Array(vec![
+            self.pt.x.into(),
+            self.pt.y.into(),
+            self.node_type.glyphs_str().to_string().into(),
+        ])
     }
 }
 
@@ -798,7 +796,7 @@ impl FromPlist for Point {
 
 impl ToPlist for Point {
     fn to_plist(self) -> Plist {
-        format!("[{}, {}]", self.x, self.y).into()
+        Plist::Array(vec![self.x.into(), self.y.into()])
     }
 }
 
@@ -821,7 +819,7 @@ impl FromPlist for Scale {
 
 impl ToPlist for Scale {
     fn to_plist(self) -> Plist {
-        format!("[{}, {}]", self.horizontal, self.vertical).into()
+        Plist::Array(vec![self.horizontal.into(), self.vertical.into()])
     }
 }
 

@@ -155,8 +155,8 @@ impl TryFrom<&Component> for norad::Component {
             .scale
             .as_ref()
             .map(|s| s.horizontal)
-            .unwrap_or(0.0);
-        let scale_y = component.scale.as_ref().map(|s| s.vertical).unwrap_or(0.0);
+            .unwrap_or(1.0);
+        let scale_y = component.scale.as_ref().map(|s| s.vertical).unwrap_or(1.0);
         let skew_x = component
             .slant
             .as_ref()
