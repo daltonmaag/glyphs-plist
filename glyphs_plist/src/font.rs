@@ -118,6 +118,8 @@ pub struct Glyph {
     pub export: bool,
     pub color: Option<Color>,
     pub note: Option<String>,
+    #[plist(default)]
+    pub locked: bool,
 
     #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
@@ -161,8 +163,6 @@ pub struct Layer {
     pub metric_right: Option<String>,
     pub metric_width: Option<String>,
     pub metric_vert_width: Option<String>,
-    #[plist(default)]
-    pub locked: bool,
     #[plist(default)]
     pub user_data: HashMap<String, Plist>,
     pub color: Option<Color>,
