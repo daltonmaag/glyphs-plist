@@ -15,9 +15,9 @@ use crate::to_plist::ToPlist;
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Font {
-    #[rename(".appVersion")]
+    #[plist(rename = ".appVersion")]
     pub app_version: String,
-    #[rename(".formatVersion")]
+    #[plist(rename = ".formatVersion")]
     pub format_version: Option<i64>,
     pub date: String,
     pub family_name: String,
@@ -31,13 +31,13 @@ pub struct Font {
     pub stems: Option<Vec<FontStems>>,
     pub settings: Option<Settings>,
     pub instances: Option<Vec<Instance>>,
-    #[rename("kerningLTR")]
+    #[plist(rename = "kerningLTR")]
     pub kerning_ltr: Option<HashMap<String, norad::Kerning>>,
-    #[rename("kerningRTL")]
+    #[plist(rename = "kerningRTL")]
     pub kerning_rtl: Option<HashMap<String, norad::Kerning>>,
     pub kerning_vertical: Option<HashMap<String, norad::Kerning>>,
 
-    #[rest]
+    #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
 }
 
@@ -45,7 +45,6 @@ pub struct Font {
 pub struct Metric {
     pub filter: Option<String>,
     pub name: Option<String>,
-    #[rename("type")]
     pub r#type: Option<MetricType>,
 }
 
@@ -72,18 +71,18 @@ pub struct FontNumbers {
 pub struct FontStems {
     pub name: String,
     pub filter: Option<String>,
-    #[default(false)]
+    #[plist(default)]
     pub horizontal: bool,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Settings {
-    #[default(false)]
+    #[plist(default)]
     pub disables_automatic_alignment: bool,
-    #[default(false)]
+    #[plist(default)]
     pub disables_nice_names: bool,
 
-    #[rest]
+    #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
 }
 
@@ -100,7 +99,7 @@ pub struct Glyph {
     pub case: Option<Case>,
     pub category: Option<String>,
     pub sub_category: Option<String>,
-    #[default(Default::default())]
+    #[plist(default)]
     pub tags: Vec<String>,
     // "public.kern1." kerning group, because the right side matters.
     pub kern_right: Option<norad::Name>,
@@ -113,14 +112,14 @@ pub struct Glyph {
     pub metric_left: Option<String>,
     pub metric_right: Option<String>,
     pub metric_width: Option<String>,
-    #[default(Default::default())]
+    #[plist(default)]
     pub user_data: HashMap<String, Plist>,
-    #[default(true)]
+    #[plist(default = true)]
     pub export: bool,
     pub color: Option<Color>,
     pub note: Option<String>,
 
-    #[rest]
+    #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
 }
 
@@ -152,7 +151,7 @@ pub struct Layer {
     pub width: f64,
     pub vert_width: Option<f64>,
     pub vert_origin: Option<f64>,
-    #[default(Default::default())]
+    #[plist(default)]
     pub shapes: Vec<Shape>,
     pub anchors: Option<Vec<Anchor>>,
     pub guides: Option<Vec<GuideLine>>,
@@ -162,13 +161,13 @@ pub struct Layer {
     pub metric_right: Option<String>,
     pub metric_width: Option<String>,
     pub metric_vert_width: Option<String>,
-    #[default(false)]
+    #[plist(default)]
     pub locked: bool,
-    #[default(Default::default())]
+    #[plist(default)]
     pub user_data: HashMap<String, Plist>,
     pub color: Option<Color>,
 
-    #[rest]
+    #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
 }
 
@@ -185,7 +184,7 @@ pub struct LayerAttr {
     pub axis_rules: Option<Vec<AxisRules>>,
     pub coordinates: Option<Vec<f64>>,
 
-    #[rest]
+    #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
 }
 
@@ -198,10 +197,10 @@ pub struct AxisRules {
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct BackgroundLayer {
     pub anchors: Option<Vec<Anchor>>,
-    #[default(Default::default())]
+    #[plist(default)]
     pub shapes: Vec<Shape>,
 
-    #[rest]
+    #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
 }
 
@@ -246,7 +245,6 @@ pub struct PathGradient {
     pub colors: Vec<Vec<Color>>, // TODO: Destructure this once relevant.
     pub start: Point,
     pub end: Point,
-    #[rename("type")]
     pub r#type: String, // TODO: Make enum once relevant.
 }
 
@@ -269,14 +267,14 @@ pub enum NodeType {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Component {
-    #[rename("ref")]
+    #[plist(rename = "ref")]
     pub reference: String,
-    #[rename("angle")]
+    #[plist(rename = "angle")]
     pub rotation: Option<f64>,
     pub pos: Option<Point>,
     pub scale: Option<Scale>,
     pub slant: Option<Scale>,
-    #[rest]
+    #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
 }
 
@@ -290,9 +288,9 @@ pub struct Scale {
 pub struct Anchor {
     pub name: String,
     pub orientation: Option<AnchorOrientation>,
-    #[default(Default::default())]
+    #[plist(default)]
     pub pos: Point,
-    #[default(Default::default())]
+    #[plist(default)]
     pub user_data: HashMap<String, Plist>,
 }
 
@@ -305,15 +303,15 @@ pub enum AnchorOrientation {
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct GuideLine {
     pub name: Option<String>,
-    #[default(0.0)]
+    #[plist(default)]
     pub angle: f64,
-    #[default(Default::default())]
+    #[plist(default)]
     pub pos: Point,
-    #[default(false)]
+    #[plist(default)]
     pub locked: bool,
-    #[default(0.0)]
+    #[plist(default)]
     pub lock_angle: f64,
-    #[default(false)]
+    #[plist(default)]
     pub show_measurement: bool,
     pub orientation: Option<AnchorOrientation>,
     pub filter: Option<String>,
@@ -327,11 +325,11 @@ pub struct FontMaster {
     pub number_values: Option<Vec<f64>>,
     pub stem_values: Option<Vec<f64>>,
     pub axes_values: Option<Vec<f64>>,
-    #[default(true)]
+    #[plist(default = true)]
     pub visible: bool,
-    #[default(Default::default())]
+    #[plist(default)]
     pub user_data: HashMap<String, Plist>,
-    #[rest]
+    #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
 }
 
@@ -345,25 +343,24 @@ pub struct MasterMetric {
 pub struct Instance {
     pub name: String,
     pub axes_values: Option<Vec<f64>>,
-    #[default(true)]
+    #[plist(default = true)]
     pub exports: bool,
-    #[default(false)]
+    #[plist(default)]
     pub is_bold: bool,
-    #[default(false)]
+    #[plist(default)]
     pub is_italic: bool,
     pub link_style: Option<String>,
-    #[rename("type")]
     pub r#type: Option<InstanceType>,
-    #[default(Default::default())]
+    #[plist(default)]
     pub user_data: HashMap<String, Plist>,
-    #[default(true)]
+    #[plist(default = true)]
     pub visible: bool,
-    #[default(400)]
+    #[plist(default = 400)]
     pub weight_class: i64,
-    #[default(5)]
+    #[plist(default = 5)]
     pub width_class: i64,
 
-    #[rest]
+    #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
 }
 
@@ -1006,18 +1003,5 @@ mod tests {
         ]));
 
         FooBar::from_plist(with_unexpected);
-    }
-
-    #[test]
-    fn populates_default_values() {
-        #[derive(FromPlist)]
-        struct FooBar {
-            #[default(2 + 2)]
-            has_default: i64,
-        }
-
-        let FooBar { has_default } = FooBar::from_plist(Plist::Dictionary(Default::default()));
-
-        assert_eq!(has_default, 4);
     }
 }

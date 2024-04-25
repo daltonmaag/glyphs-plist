@@ -4,11 +4,14 @@ pub use glyphs_plist_derive::FromPlist;
 
 use crate::plist::Plist;
 
+// TODO: for macro hygiene, this trait should be moved to glyphs_plist_derive and just
+//       re-exported by glyphs_plist
 pub trait FromPlist {
     // Consider using result type; just unwrap for now.
     fn from_plist(plist: Plist) -> Self;
 }
 
+// TODO: this trait could (and should) be a private implementation detail to glyphs_plist_derive
 pub trait FromPlistOpt {
     // Consider using result type; just unwrap for now.
     fn from_plist(plist: Option<Plist>) -> Self;
