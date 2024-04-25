@@ -4,10 +4,13 @@ pub use glyphs_plist_derive::ToPlist;
 
 use crate::plist::Plist;
 
+// TODO: for macro hygiene, this trait should be moved to glyphs_plist_derive and just
+//       re-exported by glyphs_plist
 pub trait ToPlist {
     fn to_plist(self) -> Plist;
 }
 
+// TODO: this trait could (and should) be a private implementation detail to glyphs_plist_derive
 pub trait ToPlistOpt {
     fn to_plist(self) -> Option<Plist>;
 }
