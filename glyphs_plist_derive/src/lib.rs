@@ -1,5 +1,6 @@
 extern crate proc_macro;
 
+use heck::ToLowerCamelCase;
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 use syn::ext::IdentExt;
@@ -160,7 +161,7 @@ fn add_deser(data: &Data) -> DeserialisedFields {
             let field_name = field.ident.as_ref().unwrap();
             let camel_case_field_name = || {
                 let unraw = field_name.unraw().to_string();
-                snake_to_camel_case(&unraw)
+                unraw.to_lower_camel_case()
             };
             match options {
                 PlistAttribute::Standard(PlistAttributeInner {
@@ -237,7 +238,7 @@ fn add_ser(data: &Data) -> TokenStream {
                         let name = &f.ident;
                         let name_str = name.as_ref().unwrap().to_string();
                         let plist_name =
-                            get_name(&f.attrs).unwrap_or_else(|| snake_to_camel_case(&name_str));
+                            get_name(&f.attrs).unwrap_or_else(|| name_str.to_lower_camel_case());
                         Some(quote_spanned! {f.span() =>
                             if let Some(plist) = crate::to_plist::ToPlistOpt::to_plist(self.#name) {
                                 hashmap.insert(#plist_name.to_string(), plist);
@@ -296,37 +297,3 @@ fn get_name(attrs: &[Attribute]) -> Option<String> {
                 .value()
         })
 }
-
-// TODO: re-add heck
-fn snake_to_camel_case(id: &str) -> String {
-    let mut result = String::new();
-    let mut hump = false;
-    for c in id.chars() {
-        if c == '_' {
-            hump = true;
-        } else {
-            if hump {
-                result.push(c.to_ascii_uppercase());
-            } else {
-                result.push(c);
-            }
-            hump = false;
-        }
-    }
-    result
-}
-
-/*
-fn to_snake_case(id: &str) -> String {
-    let mut result = String::new();
-    for c in id.chars() {
-        if c.is_ascii_uppercase() {
-            result.push('_');
-            result.push(c.to_ascii_lowercase());
-        } else {
-            result.push(c);
-        }
-    }
-    result
-}
-*/
