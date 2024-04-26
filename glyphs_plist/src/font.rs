@@ -858,6 +858,7 @@ impl Path {
 }
 
 impl FontMaster {
+    // TODO: Just return .name?
     pub fn name(&self) -> &str {
         self.other_stuff
             .get("customParameters")
