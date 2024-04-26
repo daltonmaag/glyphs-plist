@@ -150,7 +150,7 @@ impl TryFrom<&Component> for norad::Component {
 
         let offset_x = component.pos.map(|p| p.x).unwrap_or(0.0);
         let offset_y = component.pos.map(|p| p.y).unwrap_or(0.0);
-        let rotation = component.rotation.map(|r| r.to_radians()).unwrap_or(0.0);
+        let rotation = component.rotation.unwrap_or(0.0).to_radians();
         let scale_x = component
             .scale
             .as_ref()
@@ -163,11 +163,15 @@ impl TryFrom<&Component> for norad::Component {
             .map(|p| p.horizontal)
             .unwrap_or(0.0);
         let skew_y = component.slant.as_ref().map(|p| p.vertical).unwrap_or(0.0);
-        let transform = (kurbo::Affine::translate(kurbo::Vec2::new(offset_x, offset_y))
-            .then_rotate(rotation)
-            .then_scale_non_uniform(scale_x, scale_y)
-            * kurbo::Affine::skew(skew_x, skew_y))
-        .into();
+
+        // Warning: Don't use kurbo's .then_* methods because they apply the ops
+        // in the wrong order! This matches the order glyphsLib does it in.
+        let transform: norad::AffineTransform =
+            (kurbo::Affine::translate(kurbo::Vec2::new(offset_x, offset_y))
+                * kurbo::Affine::rotate(rotation)
+                * kurbo::Affine::scale_non_uniform(scale_x, scale_y)
+                * kurbo::Affine::skew(skew_x, skew_y))
+            .into();
 
         Ok(Self::new(name, transform, None, None))
     }
@@ -197,5 +201,98 @@ impl TryFrom<&Anchor> for norad::Anchor {
             None,
             None,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+
+    #[test]
+    fn roundtrip_component_example() {
+        let transform = norad::AffineTransform {
+            x_scale: -1.0,
+            xy_scale: 0.0,
+            yx_scale: 0.0,
+            y_scale: -1.0,
+            x_offset: 250.0,
+            y_offset: 657.0,
+        };
+        roundtrip_component(transform);
+    }
+
+    /// Test that shear gets lost in translation. This is unwanted, but is due
+    /// to the reference Python code in glyphsLib not extracting it.
+    #[test]
+    #[should_panic]
+    fn roundtrip_component_shear() {
+        let transform = norad::AffineTransform {
+            x_scale: 0.5,
+            xy_scale: 0.0,
+            yx_scale: 1.5,
+            y_scale: 0.7,
+            x_offset: 0.0,
+            y_offset: 0.0,
+        };
+        roundtrip_component(transform);
+    }
+
+    proptest! {
+        #[test]
+        fn roundtrip_components(
+            x_scale in -10000.0..10000.0,
+            y_scale in -10000.0..10000.0,
+            x_offset in -10000.0..10000.0,
+            y_offset in -10000.0..10000.0,
+        ) {
+            let transform = norad::AffineTransform {
+                x_scale,
+                xy_scale: 0.0, // Also proptest once shear is extracted.
+                yx_scale: 0.0, // Also proptest once shear is extracted.
+                y_scale,
+                x_offset,
+                y_offset,
+            };
+
+            roundtrip_component(transform);
+        }
+    }
+
+    fn roundtrip_component(transform: norad::AffineTransform) {
+        let name = norad::Name::new("comma").unwrap();
+        let norad_component1 = norad::Component::new(name, transform, None, None);
+        let glyphs_component: crate::Component = (&norad_component1).into();
+        let norad_component2: norad::Component = (&glyphs_component).try_into().unwrap();
+
+        let t1 = norad_component1.transform;
+        let t2 = norad_component2.transform;
+        assert!(
+            approx_equal(t1.x_scale, t2.x_scale, 0.00001),
+            "x_scale differs: {t1:?} vs. {t2:?}",
+        );
+        assert!(
+            approx_equal(t1.xy_scale, t2.xy_scale, 0.00001),
+            "xy_scale differs: {t1:?} vs. {t2:?}",
+        );
+        assert!(
+            approx_equal(t1.yx_scale, t2.yx_scale, 0.00001),
+            "yx_scale differs: {t1:?} vs. {t2:?}",
+        );
+        assert!(
+            approx_equal(t1.y_scale, t2.y_scale, 0.00001),
+            "y_scale differs: {t1:?} vs. {t2:?}",
+        );
+        assert!(
+            approx_equal(t1.x_offset, t2.x_offset, 0.00001),
+            "x_offset differs: {t1:?} vs. {t2:?}",
+        );
+        assert!(
+            approx_equal(t1.y_offset, t2.y_offset, 0.00001),
+            "y_offset differs: {t1:?} vs. {t2:?}",
+        );
+    }
+
+    fn approx_equal(a: f64, b: f64, tolerance: f64) -> bool {
+        (a - b).abs() < tolerance
     }
 }
