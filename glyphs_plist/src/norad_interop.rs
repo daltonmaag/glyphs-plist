@@ -166,15 +166,28 @@ impl TryFrom<&Component> for norad::Component {
 
         // Warning: Don't use kurbo's .then_* methods because they apply the ops
         // in the wrong order! This matches the order glyphsLib does it in.
-        let transform: norad::AffineTransform =
-            (kurbo::Affine::translate(kurbo::Vec2::new(offset_x, offset_y))
-                * kurbo::Affine::rotate(rotation)
-                * kurbo::Affine::scale_non_uniform(scale_x, scale_y)
-                * kurbo::Affine::skew(skew_x, skew_y))
-            .into();
+        let transform = kurbo::Affine::translate(kurbo::Vec2::new(offset_x, offset_y))
+            * kurbo::Affine::rotate(rotation)
+            * kurbo::Affine::scale_non_uniform(scale_x, scale_y)
+            * kurbo::Affine::skew(skew_x, skew_y);
+
+        // Round values for roundtrip testing.
+        let transform = norad::AffineTransform {
+            x_scale: f64_precision(transform.as_coeffs()[0], 5),
+            xy_scale: f64_precision(transform.as_coeffs()[1], 5),
+            yx_scale: f64_precision(transform.as_coeffs()[2], 5),
+            y_scale: f64_precision(transform.as_coeffs()[3], 5),
+            x_offset: f64_precision(transform.as_coeffs()[4], 5),
+            y_offset: f64_precision(transform.as_coeffs()[5], 5),
+        };
 
         Ok(Self::new(name, transform, None, None))
     }
+}
+
+fn f64_precision(v: f64, precision: i32) -> f64 {
+    let r = 10f64.powi(precision);
+    (v * r).round() / r
 }
 
 impl From<&norad::Anchor> for Anchor {
