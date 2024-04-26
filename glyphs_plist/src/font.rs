@@ -101,6 +101,7 @@ pub struct Glyph {
     pub unicode: Option<norad::Codepoints>,
     pub layers: Vec<Layer>,
     /// The name of the glyph.
+    #[plist(always_serialise)]
     pub glyphname: norad::Name,
     pub production: Option<String>,
     pub script: Option<String>,

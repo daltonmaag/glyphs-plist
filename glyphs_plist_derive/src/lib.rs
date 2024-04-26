@@ -3,15 +3,42 @@ extern crate proc_macro;
 use heck::ToLowerCamelCase;
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
+use std::mem;
 use syn::ext::IdentExt;
 use syn::spanned::Spanned;
-use syn::{parse_macro_input, Attribute, Data, DeriveInput, Fields, LitStr};
+use syn::{parse_macro_input, Attribute, Data, DeriveInput, Fields, LitStr, Path, Type, TypePath};
 
 #[derive(Debug)]
 enum PlistAttribute {
     Standard(PlistAttributeInner),
     Rest,
     None,
+}
+
+impl PlistAttribute {
+    fn always_serialise(&self) -> bool {
+        if let PlistAttribute::Standard(inner) = self {
+            inner.always_serialise
+        } else {
+            false
+        }
+    }
+
+    fn take_default_to_tokens(&mut self, type_path: &Path) -> Option<TokenStream> {
+        if let PlistAttribute::Standard(inner) = self {
+            inner.default.take_tokens(type_path)
+        } else {
+            None
+        }
+    }
+
+    fn take_serialised_name(&mut self) -> Option<String> {
+        if let PlistAttribute::Standard(inner) = self {
+            inner.serialised_name.take()
+        } else {
+            None
+        }
+    }
 }
 
 impl From<&[Attribute]> for PlistAttribute {
@@ -37,13 +64,19 @@ impl From<&[Attribute]> for PlistAttribute {
                         // Expression provided, use it
                         Ok(stream) => {
                             let expr = stream.parse::<TokenStream>()?;
-                            inner.default = Some(expr)
+                            inner.default = PlistAttributeDefault::Expr(expr)
                         }
                         Err(_) => {
                             // Presume the error was there not being an = and expr, use default
-                            inner.use_default_trait();
+                            // trait
+                            inner.default = PlistAttributeDefault::DefaultTrait;
                         }
                     };
+                    return Ok(());
+                }
+                if meta.path.is_ident("always_serialize") || meta.path.is_ident("always_serialise")
+                {
+                    inner.always_serialise = true;
                     return Ok(());
                 }
                 Err(meta.error("missing/unrecognised plist attribute(s)"))
@@ -69,16 +102,40 @@ impl From<&[Attribute]> for PlistAttribute {
 #[derive(Debug, Default)]
 struct PlistAttributeInner {
     serialised_name: Option<String>,
-    default: Option<TokenStream>,
+    default: PlistAttributeDefault,
+    always_serialise: bool,
 }
 
 impl PlistAttributeInner {
     fn unused(&self) -> bool {
-        self.serialised_name.is_none() && self.default.is_none()
+        matches!(
+            self,
+            PlistAttributeInner {
+                serialised_name: None,
+                default: PlistAttributeDefault::None,
+                always_serialise: false
+            }
+        )
     }
+}
 
-    fn use_default_trait(&mut self) {
-        self.default = Some(quote! { Default::default() });
+#[derive(Debug, Default)]
+enum PlistAttributeDefault {
+    Expr(TokenStream),
+    DefaultTrait,
+    #[default]
+    None,
+}
+
+impl PlistAttributeDefault {
+    fn take_tokens(&mut self, type_path: &Path) -> Option<TokenStream> {
+        let mut old_self = PlistAttributeDefault::default();
+        mem::swap(self, &mut old_self);
+        match old_self {
+            PlistAttributeDefault::Expr(expr) => Some(expr),
+            PlistAttributeDefault::DefaultTrait => Some(quote! { <#type_path>::default() }),
+            PlistAttributeDefault::None => None,
+        }
     }
 }
 
@@ -167,15 +224,21 @@ fn add_deser(data: &Data) -> DeserialisedFields {
                 PlistAttribute::Standard(PlistAttributeInner {
                     serialised_name,
                     default,
+                    ..
                 }) => {
                     let plist_name = serialised_name.unwrap_or_else(camel_case_field_name);
                     let tokens = match default {
-                        Some(default) => quote_spanned! {field.span()=>
+                        PlistAttributeDefault::Expr(default) => quote_spanned! {field.span()=>
                             #field_name: hashmap.remove(#plist_name)
                                 .map(crate::from_plist::FromPlist::from_plist)
                                 .unwrap_or_else(|| #default),
                         },
-                        None => {
+                        PlistAttributeDefault::DefaultTrait => quote_spanned! {field.span()=>
+                            #field_name: hashmap.remove(#plist_name)
+                                .map(crate::from_plist::FromPlist::from_plist)
+                                .unwrap_or_default(),
+                        },
+                        PlistAttributeDefault::None => {
                             quote_spanned! {field.span()=>
                                 #field_name: crate::from_plist::FromPlistOpt::from_plist(
                                     hashmap.remove(#plist_name)
@@ -240,25 +303,60 @@ fn add_ser(data: &Data) -> TokenStream {
         .named
         .iter()
         .map(|field| (field, PlistAttribute::from(field.attrs.as_slice())))
-        .filter_map(|(field, options)| {
+        .filter_map(|(field, mut options)| {
+            if matches!(options, PlistAttribute::Rest) {
+                return None;
+            }
             let field_name = field.ident.as_ref().unwrap();
-            let plist_name = match options {
-                PlistAttribute::Standard(PlistAttributeInner {
-                    serialised_name: Some(plist_name),
-                    ..
-                }) => plist_name,
-                PlistAttribute::Standard(PlistAttributeInner {
-                    serialised_name: None,
-                    ..
+            let plist_name = options
+                .take_serialised_name()
+                .unwrap_or_else(|| field_name.unraw().to_string().to_lower_camel_case());
+
+            // Simple base case, no conditions to handle
+            if options.always_serialise() {
+                Some(quote_spanned! {field.span()=>
+                    if let Some(plist) = crate::to_plist::ToPlistOpt::to_plist(self.#field_name) {
+                        hashmap.insert(String::from(#plist_name), plist);
+                    }
                 })
-                | PlistAttribute::None => field_name.unraw().to_string().to_lower_camel_case(),
-                PlistAttribute::Rest => return None,
-            };
-            Some(quote_spanned! {field.span()=>
-                if let Some(plist) = crate::to_plist::ToPlistOpt::to_plist(self.#field_name) {
-                    hashmap.insert(String::from(#plist_name), plist);
+            } else {
+                match &field.ty {
+                    // Special case handling for floats
+                    Type::Path(TypePath { path, .. })
+                        if path.is_ident("f32") || path.is_ident("f64") =>
+                    {
+                        // We can compare floats with PartialEq, but we don't have Eq. The side
+                        // effect of this (AFAICT) is basically that a field with a default value
+                        // of NaN would always get serialised, even if unchanged (since NaN != NaN)
+                        let default_value = options
+                            .take_default_to_tokens(path)
+                            .unwrap_or(quote_spanned! {field.span()=> <#path>::default() });
+                        Some(quote_spanned! {field.span()=>
+                            let #field_name = PartialEq::ne(&self.#field_name, &#default_value)
+                                .then(|| crate::to_plist::ToPlistOpt::to_plist(self.#field_name))
+                                .flatten();
+                            if let Some(plist) = #field_name {
+                                hashmap.insert(String::from(#plist_name), plist);
+                            }
+                        })
+                    }
+                    Type::Path(TypePath { path, .. }) => {
+                        let default_value = options
+                            .take_default_to_tokens(path)
+                            .unwrap_or(quote_spanned! {field.span()=> <#path>::default() });
+                        Some(quote_spanned! {field.span()=>
+                            #[allow(clippy::bool_comparison)]
+                            let #field_name = (self.#field_name != #default_value)
+                                .then(|| crate::to_plist::ToPlistOpt::to_plist(self.#field_name))
+                                .flatten();
+                            if let Some(plist) = #field_name {
+                                hashmap.insert(String::from(#plist_name), plist);
+                            }
+                        })
+                    }
+                    _ => unreachable!("struct field types should all be Type::Path"),
                 }
-            })
+            }
         });
     quote! {
         #( #recurse )*
