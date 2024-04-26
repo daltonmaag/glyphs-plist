@@ -82,7 +82,7 @@ impl PlistAttributeInner {
     }
 }
 
-#[proc_macro_derive(FromPlist, attributes(plist, rest, rename))]
+#[proc_macro_derive(FromPlist, attributes(plist))]
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
@@ -121,7 +121,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::from(expanded)
 }
 
-#[proc_macro_derive(ToPlist, attributes(rest, rename))]
+#[proc_macro_derive(ToPlist, attributes(plist))]
 pub fn derive_to(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
