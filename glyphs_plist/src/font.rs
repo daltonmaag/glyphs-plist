@@ -379,7 +379,79 @@ pub enum InstanceType {
     Variable,
 }
 
+impl Default for Font {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Font {
+    /// Return a new font like Glyphs.app would do it.
+    pub fn new() -> Self {
+        Self {
+            app_version: "3259".to_string(),
+            date: "2024-04-25 08:35:58 +0000".to_string(),
+            format_version: Some(3),
+            family_name: "New Font".to_string(),
+            version_major: 1,
+            version_minor: Default::default(),
+            units_per_em: 1000,
+            glyphs: vec![Glyph {
+                layers: vec![Layer {
+                    width: 200.0,
+                    ..Layer::new("m01", None)
+                }],
+                ..Glyph::new(
+                    norad::Name::new("space").unwrap(),
+                    Some(norad::Codepoints::new(vec![' '])),
+                )
+            }],
+            font_master: vec![FontMaster {
+                metric_values: vec![
+                    MasterMetric {
+                        pos: Some(800.0),
+                        over: Some(16.0),
+                    },
+                    MasterMetric {
+                        pos: None,
+                        over: Some(-16.0),
+                    },
+                    MasterMetric {
+                        pos: Some(-200.0),
+                        over: Some(-16.0),
+                    },
+                ],
+                ..FontMaster::new("m01", "Regular")
+            }],
+            metrics: vec![
+                Metric {
+                    filter: None,
+                    name: None,
+                    r#type: Some(MetricType::Ascender),
+                },
+                Metric {
+                    filter: None,
+                    name: None,
+                    r#type: Some(MetricType::Baseline),
+                },
+                Metric {
+                    filter: None,
+                    name: None,
+                    r#type: Some(MetricType::Descender),
+                },
+            ],
+            axes: Default::default(),
+            numbers: Default::default(),
+            stems: Default::default(),
+            settings: Default::default(),
+            instances: Default::default(),
+            kerning_ltr: Default::default(),
+            kerning_rtl: Default::default(),
+            kerning_vertical: Default::default(),
+            other_stuff: Default::default(),
+        }
+    }
+
     pub fn load(path: impl AsRef<std::path::Path>) -> Result<Font, String> {
         let contents = std::fs::read_to_string(path).map_err(|e| format!("{:?}", e))?;
         let plist = Plist::parse(&contents).map_err(|e| format!("{:?}", e))?;
@@ -409,12 +481,83 @@ impl Font {
 }
 
 impl Glyph {
+    pub fn new(glyphname: impl Into<norad::Name>, unicodes: Option<norad::Codepoints>) -> Self {
+        Self {
+            glyphname: glyphname.into(),
+            unicode: unicodes,
+            case: None,
+            category: None,
+            color: None,
+            direction: None,
+            export: true,
+            kern_bottom: None,
+            kern_left: None,
+            kern_right: None,
+            kern_top: None,
+            layers: vec![],
+            locked: false,
+            metric_bottom: None,
+            metric_left: None,
+            metric_right: None,
+            metric_top: None,
+            metric_width: None,
+            note: None,
+            other_stuff: Default::default(),
+            production: None,
+            script: None,
+            sub_category: None,
+            tags: Default::default(),
+            user_data: Default::default(),
+        }
+    }
+
     pub fn get_layer(&self, layer_id: &str) -> Option<&Layer> {
         self.layers.iter().find(|l| l.layer_id == layer_id)
     }
 }
 
+impl Layer {
+    pub fn new(layer_id: impl Into<String>, associated_master_id: Option<String>) -> Self {
+        Self {
+            attr: Default::default(),
+            name: Default::default(),
+            background: Default::default(),
+            associated_master_id: associated_master_id.map(Into::into),
+            layer_id: layer_id.into(),
+            width: 600.0,
+            vert_width: Default::default(),
+            vert_origin: Default::default(),
+            shapes: Default::default(),
+            anchors: Default::default(),
+            guides: Default::default(),
+            metric_top: Default::default(),
+            metric_bottom: Default::default(),
+            metric_left: Default::default(),
+            metric_right: Default::default(),
+            metric_width: Default::default(),
+            metric_vert_width: Default::default(),
+            user_data: Default::default(),
+            color: Default::default(),
+            other_stuff: Default::default(),
+        }
+    }
+}
+
 impl FontMaster {
+    pub fn new(id: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            metric_values: Default::default(),
+            number_values: Default::default(),
+            stem_values: Default::default(),
+            axes_values: Default::default(),
+            visible: true,
+            user_data: Default::default(),
+            other_stuff: Default::default(),
+        }
+    }
+
     /// Iterate over metric "keys" (global) and "values" (per-master).
     ///
     /// If one master does not have a last value that some other master has, the
@@ -424,6 +567,41 @@ impl FontMaster {
         font: &'a Font,
     ) -> impl Iterator<Item = (&Metric, &MasterMetric)> {
         font.metrics.iter().zip(self.metric_values.iter())
+    }
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Settings {
+    pub fn new() -> Self {
+        Self {
+            disables_automatic_alignment: false,
+            disables_nice_names: false,
+            other_stuff: Default::default(),
+        }
+    }
+}
+
+impl Instance {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            axes_values: Default::default(),
+            exports: true,
+            is_bold: Default::default(),
+            is_italic: Default::default(),
+            link_style: Default::default(),
+            other_stuff: Default::default(),
+            r#type: Default::default(),
+            user_data: Default::default(),
+            visible: true,
+            weight_class: Default::default(),
+            width_class: Default::default(),
+        }
     }
 }
 
@@ -931,7 +1109,10 @@ mod tests {
 
     #[test]
     fn parse_empty_font_glyphs3() {
-        Font::load("testdata/NewFontG3.glyphs").unwrap();
+        assert_eq!(
+            Font::load("testdata/NewFontG3.glyphs").unwrap(),
+            Default::default()
+        );
     }
 
     #[test]
