@@ -568,20 +568,6 @@ impl FontMaster {
     ) -> impl Iterator<Item = (&Metric, &MasterMetric)> {
         font.metrics.iter().zip(self.metric_values.iter())
     }
-
-    // TODO: Just return .name?
-    pub fn name(&self) -> &str {
-        self.other_stuff
-            .get("customParameters")
-            .expect("no customParameters to determine master name from")
-            .as_array()
-            .expect("customParameters should be an array")
-            .iter()
-            .map(|cp| cp.as_dict().unwrap())
-            .find(|cp| cp.get("name").unwrap().as_str().unwrap() == "Master Name")
-            .and_then(|cp| cp.get("value").unwrap().as_str())
-            .expect("Cannot determine name for master")
-    }
 }
 
 impl Default for Settings {
