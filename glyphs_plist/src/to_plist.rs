@@ -33,6 +33,12 @@ impl ToPlist for bool {
     }
 }
 
+impl ToPlist for u16 {
+    fn to_plist(self) -> Plist {
+        Plist::Integer(self.into())
+    }
+}
+
 impl ToPlist for i64 {
     fn to_plist(self) -> Plist {
         self.into()

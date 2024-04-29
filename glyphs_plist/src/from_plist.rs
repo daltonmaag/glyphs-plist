@@ -36,6 +36,17 @@ impl FromPlist for bool {
     }
 }
 
+impl FromPlist for u16 {
+    fn from_plist(plist: Plist) -> Self {
+        match plist {
+            Plist::Integer(wider) => wider
+                .try_into()
+                .expect("Integer '{:?}' is out-of-bounds of u16"),
+            _ => panic!("Cannot parse u16 '{:?}'", plist),
+        }
+    }
+}
+
 impl FromPlist for i64 {
     fn from_plist(plist: Plist) -> Self {
         plist.as_i64().expect("expected integer")

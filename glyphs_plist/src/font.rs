@@ -605,23 +605,6 @@ impl Instance {
     }
 }
 
-impl FromPlist for u16 {
-    fn from_plist(plist: Plist) -> Self {
-        match plist {
-            Plist::Integer(wider) => wider
-                .try_into()
-                .expect("Integer '{:?}' is out-of-bounds of u16"),
-            _ => panic!("Cannot parse u16 '{:?}'", plist),
-        }
-    }
-}
-
-impl ToPlist for u16 {
-    fn to_plist(self) -> Plist {
-        Plist::Integer(self.into())
-    }
-}
-
 impl FromPlist for norad::Name {
     fn from_plist(plist: Plist) -> Self {
         match plist {
