@@ -415,6 +415,12 @@ impl From<u8> for Plist {
     }
 }
 
+impl From<i32> for Plist {
+    fn from(x: i32) -> Plist {
+        Plist::Integer(x as i64)
+    }
+}
+
 impl From<i64> for Plist {
     fn from(x: i64) -> Plist {
         Plist::Integer(x)
@@ -436,6 +442,140 @@ impl From<Vec<Plist>> for Plist {
 impl From<HashMap<String, Plist>> for Plist {
     fn from(x: HashMap<String, Plist>) -> Plist {
         Plist::Dictionary(x)
+    }
+}
+
+// Macros from: https://github.com/ebarnard/rust-plist/blob/a7430c8a30521c7db7857d1619beb29b8595841d/src/macros.rs
+// Adapted for this crate
+
+/// Create a [`Dictionary`](crate::Dictionary) from a list of key-value pairs
+///
+/// ## Example
+///
+/// ```
+/// # use glyphs_plist::{plist_dict, Plist};
+/// let map = plist_dict! {
+///     "a" => 1,
+///     "b" => 2,
+/// };
+/// let Plist::Dictionary(map) = &map else {
+///     unreachable!();
+/// };
+/// assert_eq!(map["a"], Plist::from(1));
+/// assert_eq!(map["b"], Plist::from(2));
+/// assert_eq!(map.get("c"), None);
+/// ```
+#[macro_export]
+macro_rules! plist_dict {
+    (@single $($x:tt)*) => (());
+    (@count $($rest:expr),*) => (<[()]>::len(&[$($crate::plist_dict!(@single $rest)),*]));
+
+    ($($key:expr => $value:expr,)+) => { $crate::plist_dict!($($key => $value),+) };
+    ($($key:expr => $value:expr),*) => {
+        {
+            let item_count = $crate::plist_dict!(@count $($key),*);
+            let mut _dict = std::collections::HashMap::with_capacity(item_count);
+            $(
+                let _ = _dict.insert(::std::string::String::from($key), $crate::Plist::from($value));
+            )*
+            $crate::Plist::Dictionary(_dict)
+        }
+    };
+}
+
+/// Create a [`Plist::Array`] from a list of values
+///
+/// ## Example
+///
+/// ```
+/// # use glyphs_plist::{plist_array, Plist};
+/// let array = plist_array![1, 2];
+/// assert_eq!(array, Plist::Array(vec![Plist::from(1), Plist::from(2)]));
+///
+/// let other_array = plist_array![String::from("hi"); 2];
+/// assert_eq!(
+///     other_array,
+///     Plist::Array(vec![
+///         Plist::from(String::from("hi")),
+///         Plist::from(String::from("hi"))
+///     ]),
+/// );
+/// ```
+#[macro_export]
+macro_rules! plist_array {
+    (@single $($x:tt)*) => (());
+    (@count $($rest:expr),*) => (<[()]>::len(&[$($crate::plist_array!(@single $rest)),*]));
+
+    ($($value:expr,)+) => { $crate::plist_array!($($value),+) };
+    ($($value:expr),*) => {
+        {
+            let item_count = $crate::plist_array!(@count $($value),*);
+            let mut _array = ::std::vec::Vec::with_capacity(item_count);
+            $(
+                _array.push($crate::Plist::from($value));
+            )*
+            $crate::Plist::Array(_array)
+        }
+    };
+
+    ($value:expr; $n:expr) => ($crate::Plist::Array(::std::vec![$crate::Plist::from($value); $n]));
+}
+
+#[cfg(test)]
+mod macro_tests {
+    use crate::Plist;
+
+    #[test]
+    fn test_plist_dict() {
+        let digits = plist_dict! {
+            "one" => 1,
+            "two" => 2,
+        };
+        let Plist::Dictionary(digits) = &digits else {
+            panic!("wrong Plist variant, expected Plist::Dictionary, got {digits:?}");
+        };
+        assert_eq!(digits.len(), 2);
+        assert_eq!(digits["one"], 1.into());
+        assert_eq!(digits["two"], 2.into());
+
+        let empty = plist_dict! {};
+        let Plist::Dictionary(empty) = &empty else {
+            panic!("wrong Plist variant, expected Plist::Dictionary, got {digits:?}");
+        };
+        assert!(empty.is_empty());
+
+        let _nested_compiles = plist_dict! {
+            "inner" => plist_dict! {
+                "one" => 1,
+                "two" => 2,
+            },
+        };
+    }
+
+    #[test]
+    fn test_plist_array() {
+        let digits = plist_array![1, 2, 3];
+        let Plist::Array(digits) = &digits else {
+            panic!("wrong Plist variant, expected Plist::Array, got {digits:?}");
+        };
+        assert_eq!(
+            digits,
+            &vec![Plist::from(1), Plist::from(2), Plist::from(3)],
+        );
+
+        let repeated = plist_array![1; 5];
+        let Plist::Array(repeated) = &repeated else {
+            panic!("wrong Plist variant, expected Plist::Array, got {repeated:?}");
+        };
+        assert_eq!(repeated, &vec![Plist::from(1); 5]);
+
+        let empty = plist_array![];
+        let Plist::Array(empty) = &empty else {
+            panic!("wrong Plist variant, expected Plist::Array, got {empty:?}");
+        };
+        assert!(empty.is_empty());
+
+        let _nested_compiles = plist_array![plist_array![1, 2, 3]];
     }
 }
 
