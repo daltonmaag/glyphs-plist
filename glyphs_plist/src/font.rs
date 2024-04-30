@@ -575,6 +575,38 @@ impl Layer {
             other_stuff: Default::default(),
         }
     }
+
+    pub fn is_master_layer(&self) -> bool {
+        self.associated_master_id.is_none()
+    }
+
+    pub fn is_color_layer(&self) -> bool {
+        self.attr
+            .as_ref()
+            .map(|a| a.other_stuff.contains_key("color"))
+            .unwrap_or(false)
+    }
+
+    pub fn is_color_palette_layer(&self) -> bool {
+        self.attr
+            .as_ref()
+            .map(|a| a.other_stuff.contains_key("colorPalette"))
+            .unwrap_or(false)
+    }
+
+    pub fn is_svg_layer(&self) -> bool {
+        self.attr
+            .as_ref()
+            .map(|a| a.other_stuff.contains_key("svg"))
+            .unwrap_or(false)
+    }
+
+    pub fn is_icolor_layer(&self) -> bool {
+        self.attr
+            .as_ref()
+            .map(|a| a.other_stuff.contains_key("sbixSize"))
+            .unwrap_or(false)
+    }
 }
 
 impl FontMaster {
