@@ -15,17 +15,25 @@ use crate::to_plist::ToPlist;
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Font {
-    #[plist(rename = ".appVersion")]
+    #[plist(rename = ".appVersion", always_serialise)]
     pub app_version: String,
-    #[plist(rename = ".formatVersion")]
+    #[plist(rename = ".formatVersion", always_serialise)]
     pub format_version: Option<i64>,
+    #[plist(always_serialise)]
     pub date: String,
+    #[plist(always_serialise)]
     pub family_name: String,
+    #[plist(always_serialise)]
     pub version_major: i64,
+    #[plist(always_serialise)]
     pub version_minor: i64,
+    #[plist(always_serialise)]
     pub units_per_em: u16, // Glyphs UI only allows for 16-16384 inclusive
+    #[plist(always_serialise)]
     pub glyphs: Vec<Glyph>,
+    #[plist(always_serialise)]
     pub font_master: Vec<FontMaster>,
+    #[plist(always_serialise)]
     pub metrics: Vec<Metric>,
     pub axes: Option<Vec<Axis>>,
     pub numbers: Option<Vec<FontNumbers>>,
@@ -44,7 +52,9 @@ pub struct Font {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Axis {
+    #[plist(always_serialise)]
     pub name: String,
+    #[plist(always_serialise)]
     pub tag: String,
     #[plist(default)]
     pub hidden: bool,
@@ -84,7 +94,7 @@ pub struct FontStems {
     pub horizontal: bool,
 }
 
-#[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
+#[derive(Clone, Debug, Default, FromPlist, ToPlist, PartialEq)]
 pub struct Settings {
     #[plist(default)]
     pub disables_automatic_alignment: bool,
@@ -97,12 +107,13 @@ pub struct Settings {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Glyph {
-    // The Unicode values(s) for the glyph.
-    pub unicode: Option<norad::Codepoints>,
-    pub layers: Vec<Layer>,
-    /// The name of the glyph.
     #[plist(always_serialise)]
     pub glyphname: norad::Name,
+    // The Unicode values(s) for the glyph.
+    pub unicode: Option<norad::Codepoints>,
+    #[plist(always_serialise)]
+    pub layers: Vec<Layer>,
+    /// The name of the glyph.
     pub production: Option<String>,
     pub script: Option<String>,
     pub direction: Option<Direction>,
@@ -159,7 +170,9 @@ pub struct Layer {
     pub name: Option<String>,
     pub background: Option<BackgroundLayer>,
     pub associated_master_id: Option<String>,
+    #[plist(always_serialise)]
     pub layer_id: String,
+    #[plist(always_serialise)]
     pub width: f64,
     pub vert_width: Option<f64>,
     pub vert_origin: Option<f64>,
@@ -277,7 +290,7 @@ pub enum NodeType {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Component {
-    #[plist(rename = "ref")]
+    #[plist(rename = "ref", always_serialise)]
     pub reference: String,
     #[plist(rename = "angle")]
     pub rotation: Option<f64>,
@@ -296,6 +309,7 @@ pub struct Scale {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Anchor {
+    #[plist(always_serialise)]
     pub name: String,
     pub orientation: Option<AnchorOrientation>,
     #[plist(default)]
@@ -329,8 +343,11 @@ pub struct GuideLine {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct FontMaster {
+    #[plist(always_serialise)]
     pub id: String,
+    #[plist(always_serialise)]
     pub name: String,
+    #[plist(always_serialise)]
     pub metric_values: Vec<MasterMetric>,
     pub number_values: Option<Vec<f64>>,
     pub stem_values: Option<Vec<f64>>,
@@ -351,6 +368,7 @@ pub struct MasterMetric {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Instance {
+    #[plist(always_serialise)]
     pub name: String,
     pub axes_values: Option<Vec<f64>>,
     #[plist(default = true)]
@@ -381,13 +399,6 @@ pub enum InstanceType {
 
 impl Default for Font {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Font {
-    /// Return a new font like Glyphs.app would do it.
-    pub fn new() -> Self {
         Self {
             app_version: "3259".to_string(),
             date: "2024-04-25 08:35:58 +0000".to_string(),
@@ -450,6 +461,13 @@ impl Font {
             kerning_vertical: Default::default(),
             other_stuff: Default::default(),
         }
+    }
+}
+
+impl Font {
+    /// Return a new font like Glyphs.app would do it.
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn load(path: impl AsRef<std::path::Path>) -> Result<Font, String> {
@@ -570,19 +588,9 @@ impl FontMaster {
     }
 }
 
-impl Default for Settings {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Settings {
     pub fn new() -> Self {
-        Self {
-            disables_automatic_alignment: false,
-            disables_nice_names: false,
-            other_stuff: Default::default(),
-        }
+        Self::default()
     }
 }
 
