@@ -362,8 +362,10 @@ pub struct FontMaster {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct MasterMetric {
-    pub pos: Option<f64>,
-    pub over: Option<f64>,
+    #[plist(default)]
+    pub pos: f64,
+    #[plist(default)]
+    pub over: f64,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
@@ -420,16 +422,16 @@ impl Default for Font {
             font_master: vec![FontMaster {
                 metric_values: vec![
                     MasterMetric {
-                        pos: Some(800.0),
-                        over: Some(16.0),
+                        pos: 800.0,
+                        over: 16.0,
                     },
                     MasterMetric {
-                        pos: None,
-                        over: Some(-16.0),
+                        pos: 0.0,
+                        over: -16.0,
                     },
                     MasterMetric {
-                        pos: Some(-200.0),
-                        over: Some(-16.0),
+                        pos: -200.0,
+                        over: -16.0,
                     },
                 ],
                 ..FontMaster::new("m01", "Regular")
