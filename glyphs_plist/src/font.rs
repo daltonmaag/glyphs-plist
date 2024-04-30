@@ -4,13 +4,16 @@
 //! There are lots of other ways this could go, including something serde-like
 //! where it gets serialized to more Rust-native structures, proc macros, etc.
 
-use std::collections::{BTreeMap, HashMap};
-use std::fs;
+use std::collections::HashMap;
+use std::convert::Infallible;
+use std::{fs, io};
 
 use kurbo::Point;
 use thiserror::Error;
 
-use crate::from_plist::FromPlist;
+use crate::from_plist::{
+    ArrayConversionError, BoolConversionError, DownsizeToU16Error, FromPlist, VariantError,
+};
 use crate::plist::Plist;
 use crate::to_plist::ToPlist;
 
@@ -467,24 +470,34 @@ impl Default for Font {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum FontLoadError {
+    #[error("failed to read file: {0}")]
+    Io(#[from] io::Error),
+    #[error("failed to parse file as plist: {0}")]
+    ParsePlist(#[from] crate::plist::Error),
+    #[error("Glyphs 2 files are not supported")]
+    Glyphs2,
+    #[error(transparent)]
+    ParseGlyphs(#[from] GlyphsFromPlistError),
+}
+
 impl Font {
     /// Return a new font like Glyphs.app would do it.
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn load(path: impl AsRef<std::path::Path>) -> Result<Font, String> {
-        let contents = std::fs::read_to_string(path).map_err(|e| format!("{:?}", e))?;
-        let plist = Plist::parse(&contents).map_err(|e| format!("{:?}", e))?;
+    pub fn load(path: impl AsRef<std::path::Path>) -> Result<Font, FontLoadError> {
+        let contents = fs::read_to_string(path)?;
+        let plist = Plist::parse(&contents)?;
 
         // The formatVersion key is only present in Glyphs 3+ files.
         if plist.get(".formatVersion").is_none() {
-            return Err("Glyphs 2 files are not currently supported. \n\n\
-                        Go to Font Info, click the 'Other' tab and set 'File format version' to 'Version 3'."
-                .to_string());
+            return Err(FontLoadError::Glyphs2);
         }
 
-        Ok(FromPlist::from_plist(plist))
+        Ok(plist.try_into()?)
     }
 
     pub fn save(self, path: &std::path::Path) -> Result<(), String> {
@@ -616,21 +629,6 @@ impl Instance {
     }
 }
 
-// TODO: remove, below equivalent
-impl FromPlist for norad::Name {
-    fn from_plist(plist: Plist) -> Self {
-        match plist {
-            Plist::String(s) => Self::new(s.as_str())
-                .unwrap_or_else(|e| panic!("Cannot parse glyphname '{}': {:?}", s, e)),
-            // Due to Glyphs.app quirks removing quotes around the name "infinity",
-            // it is parsed as a float instead.
-            Plist::Float(f) if f.is_infinite() => Self::new("infinity").unwrap(),
-            Plist::Float(f) if f.is_nan() => Self::new("nan").unwrap(),
-            _ => panic!("Cannot parse glyphname '{:?}'", plist),
-        }
-    }
-}
-
 #[derive(Debug, Error)]
 #[error("name must be a string or a float with value infinite/NaN")]
 pub struct NameConversionError;
@@ -647,20 +645,6 @@ impl TryFrom<Plist> for norad::Name {
             Plist::Float(f) if f.is_infinite() => Ok(Self::new("infinity").unwrap()),
             Plist::Float(f) if f.is_nan() => Ok(Self::new("nan").unwrap()),
             _ => Err(NameConversionError),
-        }
-    }
-}
-
-// TODO: remove, below equivalent
-impl FromPlist for AnchorOrientation {
-    fn from_plist(plist: Plist) -> Self {
-        match plist {
-            Plist::String(s) => match s.as_str() {
-                "center" => AnchorOrientation::Center,
-                "right" => AnchorOrientation::Right,
-                _ => panic!("Unknown anchor orientation '{:?}'", s),
-            },
-            _ => panic!("Cannot parse anchor orientation '{:?}'", plist),
         }
     }
 }
@@ -693,35 +677,6 @@ impl ToPlist for AnchorOrientation {
         match self {
             AnchorOrientation::Center => Plist::String("center".into()),
             AnchorOrientation::Right => Plist::String("right".into()),
-        }
-    }
-}
-
-// TODO: remove, below equivalent
-impl FromPlist for Color {
-    fn from_plist(plist: Plist) -> Self {
-        match plist {
-            Plist::Integer(int) => Color::Index(int),
-            Plist::Array(array) => {
-                let numbers: Vec<u8> = array
-                    .iter()
-                    .map(|v| {
-                        v.as_i64()
-                            .expect("colors must be numbers")
-                            .try_into()
-                            .expect("color numbers must be in range 0–255")
-                    })
-                    .collect();
-                match *numbers.as_slice() {
-                    [g, a] => Color::GreyAlpha(g, a),
-                    [r, g, b, a] => Color::Rgba(r, g, b, a),
-                    [c, m, y, k, a] => Color::Cmyka(c, m, y, k, a),
-                    _ => panic!(
-                        "color array must contain 2 (gray, alpha), 4 (RGBA) or 5 (CMYKA) numbers"
-                    ),
-                }
-            }
-            _ => panic!("a color must be either a number or an array of 2–5 numbers"),
         }
     }
 }
@@ -776,25 +731,6 @@ impl ToPlist for Color {
     }
 }
 
-// TODO: remove, below equivalent
-impl FromPlist for Direction {
-    fn from_plist(plist: Plist) -> Self {
-        match plist {
-            Plist::String(s) => match s.as_str() {
-                "BIDI" => Direction::Bidi,
-                "LTR" => Direction::Ltr,
-                "RTL" => Direction::Rtl,
-                "VTL" => Direction::Vtl,
-                "VTR" => Direction::Vtr,
-                _ => panic!("direction must be a string of 'BIDI', 'LTR', 'RTL', 'VTL' or 'VTR'"),
-            },
-            _ => {
-                panic!("direction must be a string of 'BIDI', 'LTR', 'RTL', 'VTL' or 'VTR'")
-            }
-        }
-    }
-}
-
 #[derive(Debug, Error)]
 #[error(r#"direction must be a string containing only "BIDI", "LTR", "RTL", "VTL", or "VTR""#)]
 pub struct DirectionConversionError;
@@ -825,27 +761,6 @@ impl ToPlist for Direction {
             Direction::Rtl => "RTL".to_string().into(),
             Direction::Vtl => "VTL".to_string().into(),
             Direction::Vtr => "VTR".to_string().into(),
-        }
-    }
-}
-
-// TODO: remove, below equivalent
-impl FromPlist for Case {
-    fn from_plist(plist: Plist) -> Self {
-        match plist {
-            Plist::String(s) => match s.as_str() {
-                "noCase" => Case::None,
-                "upper" => Case::Upper,
-                "lower" => Case::Lower,
-                "smallCaps" => Case::SmallCaps,
-                "other" => Case::Other,
-                _ => panic!(
-                    "case must be a string of 'noCase', 'upper', 'lower', 'smallCaps', 'other'"
-                ),
-            },
-            _ => {
-                panic!("case must be a string of 'noCase', 'upper', 'lower', 'smallCaps', 'other'")
-            }
         }
     }
 }
@@ -882,30 +797,6 @@ impl ToPlist for Case {
             Case::Lower => "lower".to_string().into(),
             Case::SmallCaps => "smallCaps".to_string().into(),
             Case::Other => "other".to_string().into(),
-        }
-    }
-}
-
-// TODO: remove, below equivalent
-impl FromPlist for MetricType {
-    fn from_plist(plist: Plist) -> Self {
-        match plist {
-            Plist::String(s) => match s.as_str() {
-                "ascender" => MetricType::Ascender,
-                "baseline" => MetricType::Baseline,
-                "bodyHeight" => MetricType::BodyHeight,
-                "cap height" => MetricType::CapHeight,
-                "descender" => MetricType::Descender,
-                "italic angle" => MetricType::ItalicAngle,
-                "midHeight" => MetricType::MidHeight,
-                "slant height" => MetricType::SlantHeight,
-                "topHeight" => MetricType::TopHeight,
-                "x-height" => MetricType::XHeight,
-                _ => panic!("metric type must be a string of 'ascender', 'cap height', 'slant height', 'x-height', 'midHeight', 'topHeight', 'bodyHeight', 'descender', 'baseline', 'italic angle'"),
-            },
-            _ => {
-                panic!("metric type must be a string of 'ascender', 'cap height', 'slant height', 'x-height', 'midHeight', 'topHeight', 'bodyHeight', 'descender', 'baseline', 'italic angle'")
-            }
         }
     }
 }
@@ -962,21 +853,6 @@ impl ToPlist for MetricType {
     }
 }
 
-// TODO: remove, below equivalent
-impl FromPlist for InstanceType {
-    fn from_plist(plist: Plist) -> Self {
-        match plist {
-            Plist::String(s) => match s.as_str() {
-                "variable" => InstanceType::Variable,
-                _ => panic!("instance type type must be a string of 'variable'"),
-            },
-            _ => {
-                panic!("instance type type must be a string of 'variable'")
-            }
-        }
-    }
-}
-
 #[derive(Debug, Error)]
 #[error(r#"instance type must be a string containing only "variable""#)]
 pub struct InstanceTypeConversionError;
@@ -1002,36 +878,39 @@ impl ToPlist for InstanceType {
     }
 }
 
-// TODO: make a TryFrom impl once Component & Path are done
-impl FromPlist for Shape {
-    fn from_plist(plist: Plist) -> Self {
-        match plist {
-            Plist::Dictionary(dict) => {
-                if dict.contains_key("ref") {
-                    Shape::Component(FromPlist::from_plist(Plist::Dictionary(dict)))
-                } else {
-                    Shape::Path(Box::new(FromPlist::from_plist(Plist::Dictionary(dict))))
-                }
-            }
-            _ => panic!("Cannot parse shape '{:?}'", plist),
-        }
-    }
+#[derive(Debug, Error)]
+pub enum ShapeConversionError {
+    #[error("shape can only be parsed from a dictionary")]
+    WrongVariant,
+    #[error("bad component: {0}")]
+    BadComponent(Box<GlyphsFromPlistError>),
+    #[error("bad path: {0}")]
+    BadPath(Box<GlyphsFromPlistError>),
 }
 
 // TODO: proper errors once derive macro makes proper errors
 impl TryFrom<Plist> for Shape {
-    type Error = Box<dyn std::error::Error>;
+    type Error = ShapeConversionError;
 
     fn try_from(plist: Plist) -> Result<Self, Self::Error> {
         match plist {
             Plist::Dictionary(ref dict) => {
                 if dict.contains_key("ref") {
-                    Ok(Shape::Component(FromPlist::from_plist(plist)))
+                    plist
+                        .try_into()
+                        .map(Shape::Component)
+                        .map_err(Box::new)
+                        .map_err(ShapeConversionError::BadComponent)
                 } else {
-                    Ok(Shape::Path(Box::new(FromPlist::from_plist(plist))))
+                    plist
+                        .try_into()
+                        .map(Box::new)
+                        .map(Shape::Path)
+                        .map_err(Box::new)
+                        .map_err(ShapeConversionError::BadComponent)
                 }
             }
-            _ => panic!("Cannot parse shape '{:?}'", plist),
+            _ => Err(ShapeConversionError::WrongVariant),
         }
     }
 }
@@ -1048,33 +927,6 @@ impl ToPlist for Shape {
 impl ToPlist for norad::Name {
     fn to_plist(self) -> Plist {
         self.to_string().into()
-    }
-}
-
-// TODO: remove, below equivalent
-impl FromPlist for norad::Codepoints {
-    fn from_plist(plist: Plist) -> Self {
-        const ERR_MSG: &str = "Unicode codepoint must be integer in range U+0000–U+10FFFF";
-        match plist {
-            Plist::Integer(n) => {
-                let cp: u32 = n.try_into().expect(ERR_MSG);
-                let cp = char::try_from(cp).expect(ERR_MSG);
-                norad::Codepoints::new([cp])
-            }
-            Plist::Array(array) => {
-                norad::Codepoints::new(array.iter().map(|codepoint| match codepoint {
-                    Plist::Integer(n) => {
-                        let cp: u32 = (*n).try_into().expect(ERR_MSG);
-                        char::try_from(cp).expect(ERR_MSG)
-                    }
-                    _ => panic!("codepoint must be integer, but got {:?}", codepoint),
-                }))
-            }
-            _ => panic!(
-                "codepoint must be integer or array of integers, but got {:?}",
-                plist
-            ),
-        }
     }
 }
 
@@ -1124,36 +976,6 @@ impl ToPlist for norad::Codepoints {
         } else {
             Plist::Array(self.iter().map(|cp| Plist::Integer(cp as i64)).collect())
         }
-    }
-}
-
-// TODO: remove, below equivalent
-impl FromPlist for Node {
-    fn from_plist(plist: Plist) -> Self {
-        let mut tuple = plist
-            .as_array()
-            .expect("a node must be described by a tuple")
-            .iter();
-        let x = tuple
-            .next()
-            .expect("a node must have an x coordinate")
-            .as_f64()
-            .expect("a node x coordinate must be a floating point number");
-        let y = tuple
-            .next()
-            .expect("a node must have a y coordinate")
-            .as_f64()
-            .expect("a node y coordinate must be a floating point number");
-        let node_type = tuple
-            .next()
-            .expect("a node must have type")
-            .as_str()
-            .expect("a node type must be a string")
-            .parse()
-            .expect("a node type must be any of 'l', 'ls', 'c', 'cs', 'q', 'qs' or 'o'");
-
-        let pt = Point::new(x, y);
-        Node { pt, node_type }
     }
 }
 
@@ -1260,24 +1082,6 @@ impl ToPlist for Node {
     }
 }
 
-// TODO: remove, below equivalent
-impl FromPlist for Point {
-    fn from_plist(plist: Plist) -> Self {
-        let mut raw = plist
-            .as_array()
-            .expect("point must be described by a tuple")
-            .iter()
-            .map(|v| v.as_f64().expect("coordinate must be a number"));
-        let x = raw.next().expect("point must have an x coordinate");
-        let y = raw.next().expect("point must have a y coordinate");
-        assert!(
-            raw.next().is_none(),
-            "point must have exactly two coordinates"
-        );
-        Point::new(x, y)
-    }
-}
-
 #[derive(Debug, Error)]
 pub enum PointConversionError {
     #[error("point can only be parsed from an array of length 2")]
@@ -1321,24 +1125,6 @@ impl TryFrom<Plist> for Point {
 impl ToPlist for Point {
     fn to_plist(self) -> Plist {
         Plist::Array(vec![self.x.into(), self.y.into()])
-    }
-}
-
-// TODO: remove, below equivalent
-impl FromPlist for Scale {
-    fn from_plist(plist: Plist) -> Self {
-        let mut raw = plist
-            .as_array()
-            .expect("scale must be described by a tuple")
-            .iter()
-            .map(|v| v.as_f64().expect("scale value must be a number"));
-        let horizontal = raw.next().expect("scale must have a horizontal value");
-        let vertical = raw.next().expect("scale must have a vertical value");
-        assert!(raw.next().is_none(), "scale must have exactly two values");
-        Self {
-            horizontal,
-            vertical,
-        }
     }
 }
 
@@ -1434,27 +1220,6 @@ impl ToPlist for HashMap<String, norad::Kerning> {
     }
 }
 
-impl FromPlist for HashMap<String, norad::Kerning> {
-    fn from_plist(plist: Plist) -> Self {
-        let mut kerning = HashMap::new();
-
-        for (master_id, master_kerning) in plist.as_dict().unwrap() {
-            let mut new_master_kerning = norad::Kerning::new();
-            for (left, second_dict) in master_kerning.as_dict().unwrap() {
-                let mut new_second_dict = BTreeMap::new();
-                for (right, value) in second_dict.as_dict().unwrap() {
-                    let value = value.as_f64().unwrap();
-                    new_second_dict.insert(norad::Name::new(right).unwrap(), value);
-                }
-                new_master_kerning.insert(norad::Name::new(left).unwrap(), new_second_dict);
-            }
-            kerning.insert(master_id.clone(), new_master_kerning);
-        }
-
-        kerning
-    }
-}
-
 #[derive(Debug, Error)]
 pub enum KerningConversionError {
     #[error("kerning can only be parsed from a dict[master name, dict[left, dict[right, value]]]")]
@@ -1513,6 +1278,17 @@ impl TryFrom<Plist> for HashMap<String, norad::Kerning> {
 
 #[derive(Debug, Error)]
 pub enum GlyphsFromPlistError {
+    #[error("missing field {0}")]
+    MissingField(&'static str),
+    // TODO: provide field/struct name somehow
+    #[error("incorrect field type: {0}")]
+    Variant(#[from] VariantError),
+    #[error(transparent)]
+    DownsizeToU16(#[from] DownsizeToU16Error),
+    #[error("bad bool: {0}")]
+    Bool(#[from] BoolConversionError),
+    #[error("bad array: {0}")]
+    Array(Box<dyn std::error::Error>),
     #[error("bad name: {0}")]
     Name(#[from] NameConversionError),
     #[error("bad anchor orientation: {0}")]
@@ -1533,6 +1309,27 @@ pub enum GlyphsFromPlistError {
     Point(#[from] PointConversionError),
     #[error("bad scale: {0}")]
     Scale(#[from] ScaleConversionError),
+    #[error("bad shape: {0}")]
+    Shape(#[from] ShapeConversionError),
+    #[error("bad kerning: {0}")]
+    Kerning(#[from] KerningConversionError),
+    #[error("bad codepoint(s): {0}")]
+    Codepoints(#[from] CodepointsConversionError),
+}
+
+impl From<Infallible> for GlyphsFromPlistError {
+    fn from(_: Infallible) -> Self {
+        unsafe { std::hint::unreachable_unchecked() }
+    }
+}
+
+impl<E> From<ArrayConversionError<E>> for GlyphsFromPlistError
+where
+    E: std::error::Error + 'static,
+{
+    fn from(err: ArrayConversionError<E>) -> Self {
+        GlyphsFromPlistError::Array(err.into())
+    }
 }
 
 #[cfg(test)]

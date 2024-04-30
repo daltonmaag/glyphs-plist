@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use thiserror::Error;
 
 /// An enum representing a property list.
 #[derive(Clone, Debug, PartialEq)]
@@ -11,15 +12,23 @@ pub enum Plist {
     Float(f64),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum Error {
+    #[error("unexpected character {0}")]
     UnexpectedChar(char),
+    #[error("unclosed string")]
     UnclosedString,
+    #[error("unknown escape")]
     UnknownEscape,
+    #[error("expected string")]
     NotAString,
+    #[error("expected `=`")]
     ExpectedEquals,
+    #[error("expected `,`")]
     ExpectedComma,
+    #[error("expected `;`")]
     ExpectedSemicolon,
+    #[error("in the event of this error, use hammer to break glass and escape")]
     SomethingWentWrong,
 }
 

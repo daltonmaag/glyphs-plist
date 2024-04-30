@@ -151,25 +151,31 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let expanded = if consumes_rest {
         quote! {
-            impl crate::from_plist::FromPlist for #name {
-                fn from_plist(plist: crate::plist::Plist) -> Self {
+            impl TryFrom<crate::plist::Plist> for #name {
+                type Error = crate::GlyphsFromPlistError;
+
+                #[allow(clippy::unnecessary_fallible_conversions)]
+                fn try_from(plist: crate::plist::Plist) -> Result<Self, Self::Error> {
                     let mut hashmap = plist.into_hashmap();
-                    #name {
+                    Ok(#name {
                         #fields
-                    }
+                    })
                 }
             }
         }
     } else {
         quote! {
-            impl crate::from_plist::FromPlist for #name {
-                fn from_plist(plist: crate::plist::Plist) -> Self {
+            impl TryFrom<crate::plist::Plist> for #name {
+                type Error = crate::GlyphsFromPlistError;
+
+                #[allow(clippy::unnecessary_fallible_conversions)]
+                fn try_from(plist: crate::plist::Plist) -> Result<Self, Self::Error> {
                     let mut hashmap = plist.into_hashmap();
                     let result = #name {
                         #fields
                     };
                     assert!(hashmap.is_empty(), "unrecognised fields in {}: {:?}", stringify!(#name), hashmap.keys());
-                    result
+                    Ok(result)
                 }
             }
         }
@@ -188,6 +194,7 @@ pub fn derive_to(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let expanded = quote! {
         impl crate::to_plist::ToPlist for #name {
+            #[allow(clippy::bool_comparison)]
             fn to_plist(self) -> crate::plist::Plist {
                 #ser_rest
                 #ser
@@ -220,6 +227,12 @@ fn add_deser(data: &Data) -> DeserialisedFields {
                 let unraw = field_name.unraw().to_string();
                 unraw.to_lower_camel_case()
             };
+            let field_name_str = field_name.to_string();
+            let field_is_option = if let Type::Path(TypePath { path, .. }) = &field.ty {
+                path.segments.first().unwrap().ident == "Option"
+            } else {
+                unreachable!("field type is always Type::Path")
+            };
             match options {
                 PlistAttribute::Standard(PlistAttributeInner {
                     serialised_name,
@@ -230,30 +243,52 @@ fn add_deser(data: &Data) -> DeserialisedFields {
                     let tokens = match default {
                         PlistAttributeDefault::Expr(default) => quote_spanned! {field.span()=>
                             #field_name: hashmap.remove(#plist_name)
-                                .map(crate::from_plist::FromPlist::from_plist)
-                                .unwrap_or_else(|| #default),
+                                .map_or_else(|| Ok(#default), TryFrom::try_from)?,
                         },
                         PlistAttributeDefault::DefaultTrait => quote_spanned! {field.span()=>
                             #field_name: hashmap.remove(#plist_name)
-                                .map(crate::from_plist::FromPlist::from_plist)
-                                .unwrap_or_default(),
+                                .map_or_else(|| Ok(Default::default()), TryFrom::try_from)?,
                         },
+                        // TODO: de-dupe these two clauses with the pair below
+                        PlistAttributeDefault::None if field_is_option => {
+                            quote_spanned! {field.span()=>
+                                #field_name: match hashmap.remove(#plist_name) {
+                                    Some(plist) => Some(plist.try_into()?),
+                                    None => None,
+                                },
+                            }
+                        }
                         PlistAttributeDefault::None => {
                             quote_spanned! {field.span()=>
-                                #field_name: crate::from_plist::FromPlistOpt::from_plist(
-                                    hashmap.remove(#plist_name)
-                                ),
+                                #field_name: match hashmap.remove(#plist_name) {
+                                    Some(plist) => plist.try_into()?,
+                                    None => return Err(
+                                        crate::GlyphsFromPlistError::MissingField(#field_name_str)
+                                    ),
+                                },
                             }
                         }
                     };
                     Some(tokens)
                 }
+                PlistAttribute::None if field_is_option => {
+                    let plist_name = camel_case_field_name();
+                    Some(quote_spanned! {field.span()=>
+                        #field_name: match hashmap.remove(#plist_name) {
+                            Some(plist) => Some(plist.try_into()?),
+                            None => None,
+                        },
+                    })
+                }
                 PlistAttribute::None => {
                     let plist_name = camel_case_field_name();
                     Some(quote_spanned! {field.span()=>
-                        #field_name: crate::from_plist::FromPlistOpt::from_plist(
-                            hashmap.remove(#plist_name)
-                        ),
+                        #field_name: match hashmap.remove(#plist_name) {
+                            Some(plist) => plist.try_into()?,
+                            None => return Err(
+                                crate::GlyphsFromPlistError::MissingField(#field_name_str)
+                            ),
+                        },
                     })
                 }
                 PlistAttribute::Rest => None,
@@ -345,7 +380,6 @@ fn add_ser(data: &Data) -> TokenStream {
                             .take_default_to_tokens(path)
                             .unwrap_or(quote_spanned! {field.span()=> <#path>::default() });
                         Some(quote_spanned! {field.span()=>
-                            #[allow(clippy::bool_comparison)]
                             let #field_name = (self.#field_name != #default_value)
                                 .then(|| crate::to_plist::ToPlistOpt::to_plist(self.#field_name))
                                 .flatten();

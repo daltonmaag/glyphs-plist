@@ -8,8 +8,8 @@ mod to_plist;
 
 pub use font::{
     Anchor, Axis, BackgroundLayer, Component, Font, FontMaster, FontNumbers, FontStems, Glyph,
-    Instance, Layer, LayerAttr, MasterMetric, Metric, MetricType, Node, NodeType, Path, Settings,
-    Shape,
+    GlyphsFromPlistError, Instance, Layer, LayerAttr, MasterMetric, Metric, MetricType, Node,
+    NodeType, Path, Settings, Shape,
 };
 pub use from_plist::FromPlist;
 pub use plist::Plist;
