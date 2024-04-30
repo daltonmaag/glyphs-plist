@@ -146,7 +146,6 @@ impl Plist {
         }
     }
 
-    #[allow(unused)]
     pub fn as_array(&self) -> Option<&[Plist]> {
         match self {
             Plist::Array(a) => Some(a),
@@ -154,7 +153,6 @@ impl Plist {
         }
     }
 
-    #[allow(unused)]
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Plist::String(s) => Some(s),

@@ -120,6 +120,7 @@ dependencies = [
  "maplit",
  "norad",
  "proptest",
+ "thiserror",
 ]
 
 [[package]]
