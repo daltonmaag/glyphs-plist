@@ -580,31 +580,45 @@ impl Layer {
         self.associated_master_id.is_none()
     }
 
+    pub fn is_intermediate_layer(&self) -> bool {
+        self.attr
+            .as_ref()
+            .map(|attr| attr.coordinates.is_some())
+            .unwrap_or(false)
+    }
+
+    pub fn is_alternate_layer(&self) -> bool {
+        self.attr
+            .as_ref()
+            .map(|attr| attr.axis_rules.is_some())
+            .unwrap_or(false)
+    }
+
     pub fn is_color_layer(&self) -> bool {
         self.attr
             .as_ref()
-            .map(|a| a.other_stuff.contains_key("color"))
+            .map(|attr| attr.other_stuff.contains_key("color"))
             .unwrap_or(false)
     }
 
     pub fn is_color_palette_layer(&self) -> bool {
         self.attr
             .as_ref()
-            .map(|a| a.other_stuff.contains_key("colorPalette"))
+            .map(|attr| attr.other_stuff.contains_key("colorPalette"))
             .unwrap_or(false)
     }
 
     pub fn is_svg_layer(&self) -> bool {
         self.attr
             .as_ref()
-            .map(|a| a.other_stuff.contains_key("svg"))
+            .map(|attr| attr.other_stuff.contains_key("svg"))
             .unwrap_or(false)
     }
 
     pub fn is_icolor_layer(&self) -> bool {
         self.attr
             .as_ref()
-            .map(|a| a.other_stuff.contains_key("sbixSize"))
+            .map(|attr| attr.other_stuff.contains_key("sbixSize"))
             .unwrap_or(false)
     }
 }
