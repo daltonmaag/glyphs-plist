@@ -174,8 +174,13 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     let result = #name {
                         #fields
                     };
-                    assert!(hashmap.is_empty(), "unrecognised fields in {}: {:?}", stringify!(#name), hashmap.keys());
-                    Ok(result)
+                    if hashmap.is_empty() {
+                        Ok(result)
+                    } else {
+                        let mut unrecognised_fields = hashmap.into_keys().collect::<Vec<_>>();
+                        unrecognised_fields.sort_unstable();
+                        Err(crate::GlyphsFromPlistError::UnrecognisedFields(unrecognised_fields))
+                    }
                 }
             }
         }

@@ -1,4 +1,3 @@
-use glyphs_plist::FromPlist;
 use glyphs_plist::Plist;
 
 #[test]
@@ -43,7 +42,7 @@ fn open_contour_smooth_point() {
     "#;
 
     let plist = Plist::parse(path_source).unwrap();
-    let path: glyphs_plist::Path = glyphs_plist::Path::from_plist(plist);
+    let path: glyphs_plist::Path = plist.try_into().unwrap();
     let contour: norad::Contour = (&path).into();
 
     assert!(!contour.is_closed());

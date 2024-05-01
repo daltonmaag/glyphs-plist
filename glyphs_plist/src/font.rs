@@ -981,7 +981,7 @@ impl ToPlist for norad::Codepoints {
 
 #[derive(Debug, Error)]
 pub enum NodeConversionError {
-    #[error("codepoints can only be parsed from an array of length 3")]
+    #[error("nodes can only be parsed from an array of length 3")]
     WrongVariant,
     #[error("node without x coordinate")]
     MissingX,
@@ -1004,9 +1004,6 @@ impl TryFrom<Plist> for Node {
         let Plist::Array(tuple) = plist else {
             return Err(NodeConversionError::WrongVariant);
         };
-        if tuple.len() != 3 {
-            return Err(NodeConversionError::WrongVariant);
-        }
 
         let mut tuple_iter = tuple.into_iter();
         let x = tuple_iter
@@ -1276,11 +1273,13 @@ impl TryFrom<Plist> for HashMap<String, norad::Kerning> {
     }
 }
 
+// TODO: provide field/struct name (context) somehow, especially for errors in dervied code
 #[derive(Debug, Error)]
 pub enum GlyphsFromPlistError {
     #[error("missing field {0}")]
     MissingField(&'static str),
-    // TODO: provide field/struct name somehow
+    #[error("unrecognised fields: {}", .0.join(", "))]
+    UnrecognisedFields(Vec<String>),
     #[error("incorrect field type: {0}")]
     Variant(#[from] VariantError),
     #[error(transparent)]
@@ -1358,7 +1357,10 @@ mod tests {
 
     #[test]
     fn parse_format3_example() {
-        let font = Font::load("testdata/GlyphsFileFormatv3.glyphs").unwrap();
+        let font = match Font::load("testdata/GlyphsFileFormatv3.glyphs") {
+            Ok(font) => font,
+            Err(why) => panic!("{why}\n{why:?}"),
+        };
 
         assert_eq!(font.app_version, "3259");
         assert_eq!(font.format_version, Some(3));
@@ -1367,26 +1369,24 @@ mod tests {
         assert!(!font.other_stuff.contains_key(".formatVersion"));
     }
 
-    // TODO: Need to be able to skip serializing default values for this.
-    // #[test]
-    // fn roundtrip_plist() {
-    //     let contents = std::fs::read_to_string("testdata/NewFontG3.glyphs").unwrap();
-    //     let plist = Plist::parse(&contents).unwrap();
-    //     let plist_original = plist.clone();
-    //     let font = Font::from_plist(plist);
-    //     let plist_roundtrip = ToPlist::to_plist(font);
-    //
-    //     assert_eq!(plist_original, plist_roundtrip);
-    // }
+    #[test]
+    fn roundtrip_plist() {
+        let contents = fs::read_to_string("testdata/NewFontG3.glyphs").unwrap();
+        let plist = Plist::parse(&contents).unwrap();
+        let font: Font = plist.clone().try_into().unwrap();
+        let plist_roundtrip = ToPlist::to_plist(font);
+
+        assert_eq!(plist, plist_roundtrip);
+    }
 
     #[test]
     fn only_expected_other_stuff() {
         // TODO: Run on all test fixtures.
         let font = Font::load("testdata/GlyphsFileFormatv3.glyphs").unwrap();
 
-        let other_keys: HashSet<String> = font.other_stuff.keys().cloned().collect();
+        let other_keys = font.other_stuff.keys().cloned().collect::<HashSet<_>>();
 
-        let disallowed: HashSet<String> = other_keys
+        let disallowed = other_keys
             .difference(&HashSet::from([
                 // Explicitly unhandled:
                 "features".to_owned(),
@@ -1408,17 +1408,16 @@ mod tests {
                 "date".to_owned(),
             ]))
             .cloned()
-            .collect();
+            .collect::<HashSet<_>>();
 
-        assert_eq!(disallowed, HashSet::from([]));
+        assert!(disallowed.is_empty());
 
         // TODO: Implement for nested structs.
     }
 
     #[test]
-    #[should_panic(expected = r#"unrecognised fields in FooBar: ["bar"]"#)]
-    fn panics_on_unexpected_fields() {
-        #[derive(FromPlist)]
+    fn error_on_unexpected_fields() {
+        #[derive(Debug, FromPlist)]
         struct FooBar {
             _foo: String,
         }
@@ -1428,6 +1427,11 @@ mod tests {
             ("bar".to_owned(), Plist::String("def".to_owned())),
         ]));
 
-        FooBar::from_plist(with_unexpected);
+        let err = TryInto::<FooBar>::try_into(with_unexpected)
+            .expect_err("shouldn't succeed with unknown fields");
+        let GlyphsFromPlistError::UnrecognisedFields(fields) = err else {
+            panic!("wrong error variant");
+        };
+        assert_eq!(fields, vec![String::from("bar")]);
     }
 }
