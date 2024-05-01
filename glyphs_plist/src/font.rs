@@ -1287,7 +1287,7 @@ pub enum GlyphsFromPlistError {
     #[error("bad bool: {0}")]
     Bool(#[from] BoolConversionError),
     #[error("bad array: {0}")]
-    Array(Box<dyn std::error::Error>),
+    Array(Box<dyn std::error::Error + Send + Sync>),
     #[error("bad name: {0}")]
     Name(#[from] NameConversionError),
     #[error("bad anchor orientation: {0}")]
@@ -1324,10 +1324,10 @@ impl From<Infallible> for GlyphsFromPlistError {
 
 impl<E> From<ArrayConversionError<E>> for GlyphsFromPlistError
 where
-    E: std::error::Error + 'static,
+    E: std::error::Error + Send + Sync + 'static,
 {
     fn from(err: ArrayConversionError<E>) -> Self {
-        GlyphsFromPlistError::Array(err.into())
+        GlyphsFromPlistError::Array(Box::new(err))
     }
 }
 
