@@ -621,6 +621,10 @@ impl Layer {
             .map(|attr| attr.other_stuff.contains_key("sbixSize"))
             .unwrap_or(false)
     }
+
+    pub fn coordinates(&self) -> Option<&[f64]> {
+        self.attr.as_ref().and_then(|a| a.coordinates.as_deref())
+    }
 }
 
 impl FontMaster {
