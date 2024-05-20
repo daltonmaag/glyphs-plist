@@ -1,4 +1,6 @@
-use crate::{Anchor, Component, Node, NodeType, Path};
+use std::f64::consts::PI;
+
+use crate::{font::Scale, Anchor, Component, Node, NodeType, Path};
 
 impl From<&norad::Contour> for Path {
     fn from(contour: &norad::Contour) -> Self {
@@ -13,6 +15,7 @@ impl From<&norad::Contour> for Path {
             nodes.rotate_left(1);
         }
         Self {
+            attr: None,
             closed: contour.is_closed(),
             nodes,
         }
@@ -71,37 +74,129 @@ impl From<&Node> for norad::ContourPoint {
 
 impl From<&norad::Component> for Component {
     fn from(component: &norad::Component) -> Self {
+        let (rotation, slant, scale, pos) = if component.transform == Default::default() {
+            (None, None, None, None)
+        } else {
+            let (s_x, s_y, r) = transform_struct_to_scale_and_rotation(&component.transform);
+            (
+                Some(r),
+                None,
+                Some(Scale {
+                    horizontal: s_x,
+                    vertical: s_y,
+                }),
+                Some(kurbo::Point::new(
+                    component.transform.x_offset,
+                    component.transform.y_offset,
+                )),
+            )
+        };
         Self {
-            name: component.base.to_string(),
-            transform: if component.transform == Default::default() {
-                None
-            } else {
-                Some(component.transform.into())
-            },
+            reference: component.base.to_string(),
+            rotation,
+            pos,
+            scale,
+            slant,
             other_stuff: Default::default(),
         }
     }
+}
+
+fn transform_struct_to_scale_and_rotation(transform: &norad::AffineTransform) -> (f64, f64, f64) {
+    let det = transform.x_scale * transform.y_scale - transform.xy_scale * transform.yx_scale;
+    let mut s_x = (transform.x_scale.powi(2) + transform.xy_scale.powi(2)).sqrt();
+    let mut s_y = (transform.yx_scale.powi(2) + transform.y_scale.powi(2)).sqrt();
+
+    if det < 0.0 {
+        s_y = -s_y;
+    }
+
+    let mut r = (transform.xy_scale * s_y).atan2(transform.x_scale * s_x) * 180.0 / PI;
+
+    if det < 0.0 && (r.abs() > 135.0 || r < -90.0) {
+        s_x = -s_x;
+        s_y = -s_y;
+        if r < 0.0 {
+            r += 180.0;
+        } else {
+            r -= 180.0;
+        }
+    }
+
+    let mut quadrant = 0.0;
+    if r < -90.0 {
+        quadrant = 180.0;
+        r += quadrant;
+    }
+    if r > 90.0 {
+        quadrant = -180.0;
+        r += quadrant;
+    }
+
+    r = r * s_x / s_y;
+    r -= quadrant;
+    if r < -179.0 {
+        r += 360.0;
+    }
+
+    (s_x, s_y, r)
 }
 
 impl TryFrom<&Component> for norad::Component {
     type Error = norad::error::NamingError;
 
     fn try_from(component: &Component) -> Result<Self, Self::Error> {
-        let name = norad::Name::new(&component.name)?;
-        Ok(Self::new(
-            name,
-            component.transform.unwrap_or_default().into(),
-            None,
-            None,
-        ))
+        let name = norad::Name::new(&component.reference)?;
+
+        let offset_x = component.pos.map(|p| p.x).unwrap_or(0.0);
+        let offset_y = component.pos.map(|p| p.y).unwrap_or(0.0);
+        let rotation = component.rotation.unwrap_or(0.0).to_radians();
+        let scale_x = component
+            .scale
+            .as_ref()
+            .map(|s| s.horizontal)
+            .unwrap_or(1.0);
+        let scale_y = component.scale.as_ref().map(|s| s.vertical).unwrap_or(1.0);
+        let skew_x = component
+            .slant
+            .as_ref()
+            .map(|p| p.horizontal)
+            .unwrap_or(0.0);
+        let skew_y = component.slant.as_ref().map(|p| p.vertical).unwrap_or(0.0);
+
+        // Warning: Don't use kurbo's .then_* methods because they apply the ops
+        // in the wrong order! This matches the order glyphsLib does it in.
+        let transform = kurbo::Affine::translate(kurbo::Vec2::new(offset_x, offset_y))
+            * kurbo::Affine::rotate(rotation)
+            * kurbo::Affine::scale_non_uniform(scale_x, scale_y)
+            * kurbo::Affine::skew(skew_x, skew_y);
+
+        // Round values for roundtrip testing.
+        let transform = norad::AffineTransform {
+            x_scale: f64_precision(transform.as_coeffs()[0], 5),
+            xy_scale: f64_precision(transform.as_coeffs()[1], 5),
+            yx_scale: f64_precision(transform.as_coeffs()[2], 5),
+            y_scale: f64_precision(transform.as_coeffs()[3], 5),
+            x_offset: f64_precision(transform.as_coeffs()[4], 5),
+            y_offset: f64_precision(transform.as_coeffs()[5], 5),
+        };
+
+        Ok(Self::new(name, transform, None, None))
     }
+}
+
+fn f64_precision(v: f64, precision: i32) -> f64 {
+    let r = 10f64.powi(precision);
+    (v * r).round() / r
 }
 
 impl From<&norad::Anchor> for Anchor {
     fn from(anchor: &norad::Anchor) -> Self {
         Self {
             name: anchor.name.as_ref().unwrap().as_str().to_string(),
-            position: kurbo::Point::new(anchor.x, anchor.y),
+            orientation: None,
+            pos: kurbo::Point::new(anchor.x, anchor.y),
+            user_data: Default::default(),
         }
     }
 }
@@ -112,12 +207,105 @@ impl TryFrom<&Anchor> for norad::Anchor {
     fn try_from(anchor: &Anchor) -> Result<Self, Self::Error> {
         let name = norad::Name::new(&anchor.name)?;
         Ok(Self::new(
-            anchor.position.x,
-            anchor.position.y,
+            anchor.pos.x,
+            anchor.pos.y,
             Some(name),
             None,
             None,
             None,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+
+    #[test]
+    fn roundtrip_component_example() {
+        let transform = norad::AffineTransform {
+            x_scale: -1.0,
+            xy_scale: 0.0,
+            yx_scale: 0.0,
+            y_scale: -1.0,
+            x_offset: 250.0,
+            y_offset: 657.0,
+        };
+        roundtrip_component(transform);
+    }
+
+    /// Test that shear gets lost in translation. This is unwanted, but is due
+    /// to the reference Python code in glyphsLib not extracting it.
+    #[test]
+    #[should_panic]
+    fn roundtrip_component_shear() {
+        let transform = norad::AffineTransform {
+            x_scale: 0.5,
+            xy_scale: 0.0,
+            yx_scale: 1.5,
+            y_scale: 0.7,
+            x_offset: 0.0,
+            y_offset: 0.0,
+        };
+        roundtrip_component(transform);
+    }
+
+    proptest! {
+        #[test]
+        fn roundtrip_components(
+            x_scale in -10000.0..10000.0,
+            y_scale in -10000.0..10000.0,
+            x_offset in -10000.0..10000.0,
+            y_offset in -10000.0..10000.0,
+        ) {
+            let transform = norad::AffineTransform {
+                x_scale,
+                xy_scale: 0.0, // Also proptest once shear is extracted.
+                yx_scale: 0.0, // Also proptest once shear is extracted.
+                y_scale,
+                x_offset,
+                y_offset,
+            };
+
+            roundtrip_component(transform);
+        }
+    }
+
+    fn roundtrip_component(transform: norad::AffineTransform) {
+        let name = norad::Name::new("comma").unwrap();
+        let norad_component1 = norad::Component::new(name, transform, None, None);
+        let glyphs_component: crate::Component = (&norad_component1).into();
+        let norad_component2: norad::Component = (&glyphs_component).try_into().unwrap();
+
+        let t1 = norad_component1.transform;
+        let t2 = norad_component2.transform;
+        assert!(
+            approx_equal(t1.x_scale, t2.x_scale, 0.00001),
+            "x_scale differs: {t1:?} vs. {t2:?}",
+        );
+        assert!(
+            approx_equal(t1.xy_scale, t2.xy_scale, 0.00001),
+            "xy_scale differs: {t1:?} vs. {t2:?}",
+        );
+        assert!(
+            approx_equal(t1.yx_scale, t2.yx_scale, 0.00001),
+            "yx_scale differs: {t1:?} vs. {t2:?}",
+        );
+        assert!(
+            approx_equal(t1.y_scale, t2.y_scale, 0.00001),
+            "y_scale differs: {t1:?} vs. {t2:?}",
+        );
+        assert!(
+            approx_equal(t1.x_offset, t2.x_offset, 0.00001),
+            "x_offset differs: {t1:?} vs. {t2:?}",
+        );
+        assert!(
+            approx_equal(t1.y_offset, t2.y_offset, 0.00001),
+            "y_offset differs: {t1:?} vs. {t2:?}",
+        );
+    }
+
+    fn approx_equal(a: f64, b: f64, tolerance: f64) -> bool {
+        (a - b).abs() < tolerance
     }
 }

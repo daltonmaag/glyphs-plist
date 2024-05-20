@@ -1,66 +1,109 @@
+use std::collections::HashMap;
+use thiserror::Error;
+
 pub use glyphs_plist_derive::FromPlist;
 
 use crate::plist::Plist;
 
-pub trait FromPlist {
-    // Consider using result type; just unwrap for now.
-    fn from_plist(plist: Plist) -> Self;
-}
-
-pub trait FromPlistOpt {
-    // Consider using result type; just unwrap for now.
-    fn from_plist(plist: Option<Plist>) -> Self;
-}
-
-impl FromPlist for Plist {
-    fn from_plist(plist: Plist) -> Self {
-        plist
-    }
-}
-
-impl FromPlist for String {
-    fn from_plist(plist: Plist) -> Self {
+impl From<Plist> for String {
+    fn from(plist: Plist) -> Self {
         plist.into_string()
     }
 }
 
-impl FromPlist for bool {
-    fn from_plist(plist: Plist) -> Self {
-        // TODO: maybe error or warn on values other than 0, 1
-        plist.as_i64().expect("expected integer") != 0
+#[derive(Debug, Error)]
+pub enum BoolConversionError {
+    #[error("can't convert non-integer plist value to bool")]
+    WrongVariant,
+    #[error("integer plist value wasn't 0 or 1: {0}")]
+    BadNumber(i64),
+}
+
+impl TryFrom<Plist> for bool {
+    type Error = BoolConversionError;
+
+    fn try_from(plist: Plist) -> Result<Self, Self::Error> {
+        plist
+            .as_i64()
+            .ok_or(BoolConversionError::WrongVariant)
+            .and_then(|n| match n {
+                0 => Ok(false),
+                1 => Ok(true),
+                _ => Err(BoolConversionError::BadNumber(n)),
+            })
     }
 }
 
-impl FromPlist for i64 {
-    fn from_plist(plist: Plist) -> Self {
-        plist.as_i64().expect("expected integer")
+#[derive(Debug, Error)]
+#[error("expected {0}")]
+pub struct VariantError(pub(crate) &'static str);
+
+impl TryFrom<Plist> for i64 {
+    type Error = VariantError;
+
+    fn try_from(plist: Plist) -> Result<Self, Self::Error> {
+        plist.as_i64().ok_or(VariantError("integer"))
     }
 }
 
-impl FromPlist for f64 {
-    fn from_plist(plist: Plist) -> Self {
-        plist.as_f64().expect("expected float")
-    }
+#[derive(Debug, Error)]
+pub enum DownsizeToU16Error {
+    #[error("can't convert non-integer plist value to u16")]
+    WrongVariant,
+    #[error("{0} is out-of-bounds for a u16")]
+    OutOfBounds(i64),
 }
 
-impl<T: FromPlist> FromPlist for Vec<T> {
-    fn from_plist(plist: Plist) -> Self {
-        let mut result = Vec::new();
-        for element in plist.into_vec() {
-            result.push(FromPlist::from_plist(element));
+impl TryFrom<Plist> for u16 {
+    type Error = DownsizeToU16Error;
+
+    fn try_from(plist: Plist) -> Result<Self, Self::Error> {
+        if let Plist::Integer(int) = plist {
+            int.try_into()
+                .map_err(|_| DownsizeToU16Error::OutOfBounds(int))
+        } else {
+            Err(DownsizeToU16Error::WrongVariant)
         }
-        result
     }
 }
 
-impl<T: FromPlist> FromPlistOpt for T {
-    fn from_plist(plist: Option<Plist>) -> Self {
-        FromPlist::from_plist(plist.unwrap())
+impl TryFrom<Plist> for f64 {
+    type Error = VariantError;
+
+    fn try_from(plist: Plist) -> Result<Self, Self::Error> {
+        plist.as_f64().ok_or(VariantError("float"))
     }
 }
 
-impl<T: FromPlist> FromPlistOpt for Option<T> {
-    fn from_plist(plist: Option<Plist>) -> Self {
-        plist.map(FromPlist::from_plist)
+impl From<Plist> for HashMap<String, Plist> {
+    fn from(plist: Plist) -> Self {
+        plist.into_hashmap()
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum ArrayConversionError<E: std::error::Error> {
+    #[error("expected array")]
+    WrongVariant,
+    #[error(transparent)]
+    Element(#[from] E),
+}
+
+impl<T> TryFrom<Plist> for Vec<T>
+where
+    T: TryFrom<Plist>,
+    T::Error: std::error::Error,
+{
+    type Error = ArrayConversionError<T::Error>;
+
+    fn try_from(plist: Plist) -> Result<Self, Self::Error> {
+        match plist {
+            Plist::Array(array) => array
+                .into_iter()
+                .map(TryFrom::try_from)
+                .collect::<Result<_, _>>()
+                .map_err(ArrayConversionError::Element),
+            _ => Err(ArrayConversionError::WrongVariant),
+        }
     }
 }

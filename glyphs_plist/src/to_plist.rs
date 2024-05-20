@@ -1,11 +1,16 @@
+use std::collections::HashMap;
+
 pub use glyphs_plist_derive::ToPlist;
 
 use crate::plist::Plist;
 
+// TODO: for macro hygiene, this trait should be moved to glyphs_plist_derive and just
+//       re-exported by glyphs_plist
 pub trait ToPlist {
     fn to_plist(self) -> Plist;
 }
 
+// TODO: this trait could (and should) be a private implementation detail to glyphs_plist_derive
 pub trait ToPlistOpt {
     fn to_plist(self) -> Option<Plist>;
 }
@@ -28,6 +33,12 @@ impl ToPlist for bool {
     }
 }
 
+impl ToPlist for u16 {
+    fn to_plist(self) -> Plist {
+        Plist::Integer(self.into())
+    }
+}
+
 impl ToPlist for i64 {
     fn to_plist(self) -> Plist {
         self.into()
@@ -35,6 +46,17 @@ impl ToPlist for i64 {
 }
 
 impl ToPlist for f64 {
+    fn to_plist(self) -> Plist {
+        // Opportunistically output integers.
+        if (self - self.round()).abs() < std::f64::EPSILON {
+            Plist::Integer(self.round() as i64)
+        } else {
+            self.into()
+        }
+    }
+}
+
+impl ToPlist for HashMap<String, Plist> {
     fn to_plist(self) -> Plist {
         self.into()
     }
