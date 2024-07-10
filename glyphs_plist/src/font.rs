@@ -240,6 +240,7 @@ pub enum Shape {
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Path {
     pub attr: Option<PathAttrs>,
+    #[plist(default)]
     pub closed: bool,
     pub nodes: Vec<Node>,
 }
@@ -938,7 +939,6 @@ pub enum ShapeConversionError {
     BadPath(Box<GlyphsFromPlistError>),
 }
 
-// TODO: proper errors once derive macro makes proper errors
 impl TryFrom<Plist> for Shape {
     type Error = ShapeConversionError;
 
@@ -957,7 +957,7 @@ impl TryFrom<Plist> for Shape {
                         .map(Box::new)
                         .map(Shape::Path)
                         .map_err(Box::new)
-                        .map_err(ShapeConversionError::BadComponent)
+                        .map_err(ShapeConversionError::BadPath)
                 }
             }
             _ => Err(ShapeConversionError::WrongVariant),
