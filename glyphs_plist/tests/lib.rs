@@ -34,7 +34,6 @@ fn open_contour_smooth_point() {
     // erroneously asserted never to occur before.
     let path_source = r#"
         {
-            closed = 0;
             nodes = (
                 (303,128,ls)
             );
