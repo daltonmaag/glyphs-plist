@@ -240,7 +240,7 @@ pub enum Shape {
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Path {
     pub attr: Option<PathAttrs>,
-    #[plist(default)]
+    #[plist(always_serialise, default = true)]
     pub closed: bool,
     pub nodes: Vec<Node>,
 }
@@ -1483,5 +1483,34 @@ mod tests {
             panic!("wrong error variant");
         };
         assert_eq!(fields, vec![String::from("bar")]);
+    }
+
+    #[test]
+    fn always_assumes_closed() {
+        // See: schriftgestalt/GlyphsSDK#92
+        // Glyphs assumes that an absent 'closed' attribute means that a path is
+        // closed, and so we should ensure that our default value respects this
+        // when reading.
+
+        let ambiguous =
+            Plist::Dictionary(HashMap::from([("nodes".to_string(), Plist::Array(vec![]))]));
+
+        let path = Path::try_from(ambiguous).unwrap();
+        assert!(path.closed);
+    }
+
+    #[test]
+    fn always_writes_closed() {
+        // See: schriftgestalt/GlyphsSDK#92
+        // Glyphs always writes the 'closed' attribute, and so we should
+        // maintain this behaviour also.
+
+        let path_open = Path::new(false);
+        let plist = path_open.to_plist().into_hashmap();
+        assert_eq!(plist.get("closed"), Some(&Plist::Integer(0)));
+
+        let path_closed = Path::new(true);
+        let plist = path_closed.to_plist().into_hashmap();
+        assert_eq!(plist.get("closed"), Some(&Plist::Integer(1)));
     }
 }
