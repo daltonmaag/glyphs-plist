@@ -280,6 +280,12 @@ pub struct PathGradient {
 pub struct Node {
     pub pt: Point,
     pub node_type: NodeType,
+    pub attr: Option<NodeAttrs>,
+}
+
+#[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
+pub struct NodeAttrs {
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -1043,6 +1049,8 @@ pub enum NodeConversionError {
     NotFloatX,
     #[error("y coordinate must be a float")]
     NotFloatY,
+    #[error("invalid node attributes: {0}")]
+    InvalidAttr(Box<GlyphsFromPlistError>),
     #[error(transparent)]
     InvalidType(#[from] NodeTypeParseError),
 }
@@ -1070,9 +1078,19 @@ impl TryFrom<Plist> for Node {
             .next()
             .ok_or(NodeConversionError::MissingType)?
             .try_into()?;
+        let attr = tuple_iter
+            .next()
+            .map(NodeAttrs::try_from)
+            .transpose()
+            .map_err(Box::new)
+            .map_err(NodeConversionError::InvalidAttr)?;
 
         let pt = Point::new(x, y);
-        Ok(Node { pt, node_type })
+        Ok(Node {
+            pt,
+            node_type,
+            attr,
+        })
     }
 }
 
@@ -1121,11 +1139,25 @@ impl NodeType {
 
 impl ToPlist for Node {
     fn to_plist(self) -> Plist {
-        Plist::Array(vec![
-            self.pt.x.into(),
-            self.pt.y.into(),
-            self.node_type.glyphs_str().to_string().into(),
-        ])
+        let Node {
+            pt,
+            node_type,
+            attr,
+        } = self;
+
+        match attr {
+            None => Plist::Array(vec![
+                pt.x.into(),
+                pt.y.into(),
+                node_type.glyphs_str().to_string().into(),
+            ]),
+            Some(attr) => Plist::Array(vec![
+                pt.x.into(),
+                pt.y.into(),
+                node_type.glyphs_str().to_string().into(),
+                attr.to_plist(),
+            ]),
+        }
     }
 }
 
@@ -1235,7 +1267,11 @@ impl Path {
 
     pub fn add(&mut self, pt: impl Into<Point>, node_type: NodeType) {
         let pt = pt.into();
-        self.nodes.push(Node { pt, node_type });
+        self.nodes.push(Node {
+            pt,
+            node_type,
+            attr: None,
+        });
     }
 
     pub fn rotate_left(&mut self, delta: usize) {
