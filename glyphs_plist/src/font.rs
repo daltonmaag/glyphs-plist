@@ -286,6 +286,9 @@ pub struct Node {
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct NodeAttrs {
     pub name: Option<String>,
+
+    #[plist(rest)]
+    pub other_stuff: HashMap<String, Plist>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -63,6 +63,7 @@ impl From<&norad::ContourPoint> for Node {
             },
             attr: point.name.as_ref().map(|name| NodeAttrs {
                 name: Some(name.to_string()),
+                other_stuff: Default::default(),
             }),
         }
     }
