@@ -1,6 +1,9 @@
 use std::f64::consts::PI;
 
-use crate::{font::Scale, Anchor, Component, Node, NodeType, Path};
+use crate::{
+    font::{NodeAttrs, Scale},
+    Anchor, Component, Node, NodeType, Path,
+};
 
 impl From<&norad::Contour> for Path {
     fn from(contour: &norad::Contour) -> Self {
@@ -22,10 +25,15 @@ impl From<&norad::Contour> for Path {
     }
 }
 
-impl From<&Path> for norad::Contour {
-    fn from(path: &Path) -> Self {
-        let mut points: Vec<norad::ContourPoint> =
-            path.nodes.iter().map(|node| node.into()).collect();
+impl TryFrom<&Path> for norad::Contour {
+    type Error = norad::error::NamingError;
+
+    fn try_from(path: &Path) -> Result<Self, Self::Error> {
+        let mut points = path
+            .nodes
+            .iter()
+            .map(|node| node.try_into())
+            .collect::<Result<Vec<norad::ContourPoint>, _>>()?;
         if !path.closed {
             // This logic comes from glyphsLib.
             assert!(points[0].typ == norad::PointType::Line);
@@ -35,7 +43,7 @@ impl From<&Path> for norad::Contour {
             // always stored at the end of the nodes list.
             points.rotate_right(1);
         }
-        Self::new(points, None, None)
+        Ok(Self::new(points, None, None))
     }
 }
 
@@ -53,12 +61,18 @@ impl From<&norad::ContourPoint> for Node {
                 (norad::PointType::QCurve, true) => NodeType::QCurveSmooth,
                 (norad::PointType::QCurve, false) => NodeType::QCurve,
             },
+            attr: point.name.as_ref().map(|name| NodeAttrs {
+                name: Some(name.to_string()),
+                other_stuff: Default::default(),
+            }),
         }
     }
 }
 
-impl From<&Node> for norad::ContourPoint {
-    fn from(node: &Node) -> Self {
+impl TryFrom<&Node> for norad::ContourPoint {
+    type Error = norad::error::NamingError;
+
+    fn try_from(node: &Node) -> Result<Self, Self::Error> {
         let (typ, smooth) = match &node.node_type {
             NodeType::Curve => (norad::PointType::Curve, false),
             NodeType::CurveSmooth => (norad::PointType::Curve, true),
@@ -68,7 +82,19 @@ impl From<&Node> for norad::ContourPoint {
             NodeType::QCurve => (norad::PointType::QCurve, false),
             NodeType::QCurveSmooth => (norad::PointType::QCurve, true),
         };
-        Self::new(node.pt.x, node.pt.y, typ, smooth, None, None, None)
+        Ok(Self::new(
+            node.pt.x,
+            node.pt.y,
+            typ,
+            smooth,
+            node.attr
+                .as_ref()
+                .and_then(|attr| attr.name.as_deref())
+                .map(norad::Name::new)
+                .transpose()?,
+            None,
+            None,
+        ))
     }
 }
 
@@ -307,5 +333,26 @@ mod tests {
 
     fn approx_equal(a: f64, b: f64, tolerance: f64) -> bool {
         (a - b).abs() < tolerance
+    }
+
+    #[test]
+    fn roundtrip_point_name() {
+        // Create a point with name 'hello world'.
+        let point = norad::ContourPoint::new(
+            0.0,
+            0.0,
+            norad::PointType::Move,
+            false,
+            Some(norad::Name::new("hello world").unwrap()),
+            None,
+            None,
+        );
+
+        // Round-trip it.
+        let node = crate::Node::from(&point);
+        let point_again = norad::ContourPoint::try_from(&node).unwrap();
+
+        // Confirm that the name is unchanged.
+        assert_eq!(point.name, point_again.name);
     }
 }
