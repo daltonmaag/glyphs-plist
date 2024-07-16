@@ -29,11 +29,11 @@ impl TryFrom<&Path> for norad::Contour {
     type Error = norad::error::NamingError;
 
     fn try_from(path: &Path) -> Result<Self, Self::Error> {
-        let mut points: Vec<norad::ContourPoint> = path
+        let mut points = path
             .nodes
             .iter()
             .map(|node| node.try_into())
-            .collect::<Result<_, _>>()?;
+            .collect::<Result<Vec<norad::ContourPoint>, _>>()?;
         if !path.closed {
             // This logic comes from glyphsLib.
             assert!(points[0].typ == norad::PointType::Line);

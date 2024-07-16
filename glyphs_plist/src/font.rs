@@ -1142,25 +1142,26 @@ impl NodeType {
 
 impl ToPlist for Node {
     fn to_plist(self) -> Plist {
+        // Construct a tuple of length 3 if there are no attributes, otherwise a
+        // tuple of length 4.
+
         let Node {
             pt,
             node_type,
             attr,
         } = self;
 
-        match attr {
-            None => Plist::Array(vec![
-                pt.x.into(),
-                pt.y.into(),
-                node_type.glyphs_str().to_string().into(),
-            ]),
-            Some(attr) => Plist::Array(vec![
-                pt.x.into(),
-                pt.y.into(),
-                node_type.glyphs_str().to_string().into(),
-                attr.to_plist(),
-            ]),
+        let mut tuple = vec![
+            pt.x.into(),
+            pt.y.into(),
+            node_type.glyphs_str().to_string().into(),
+        ];
+
+        if let Some(attr) = attr {
+            tuple.push(attr.to_plist());
         }
+
+        Plist::Array(tuple)
     }
 }
 
