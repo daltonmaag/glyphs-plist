@@ -49,6 +49,7 @@ pub struct Font {
     #[plist(rename = "kerningRTL")]
     pub kerning_rtl: Option<HashMap<String, norad::Kerning>>,
     pub kerning_vertical: Option<HashMap<String, norad::Kerning>>,
+    pub user_data: Option<HashMap<String, Plist>>,
 
     #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
@@ -475,6 +476,7 @@ impl Default for Font {
             kerning_ltr: Default::default(),
             kerning_rtl: Default::default(),
             kerning_vertical: Default::default(),
+            user_data: Default::default(),
             other_stuff: Default::default(),
         }
     }
