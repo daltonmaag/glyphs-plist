@@ -48,7 +48,7 @@ impl ToPlist for i64 {
 impl ToPlist for f64 {
     fn to_plist(self) -> Plist {
         // Opportunistically output integers.
-        if (self - self.round()).abs() < std::f64::EPSILON {
+        if (self - self.round()).abs() < f64::EPSILON {
             Plist::Integer(self.round() as i64)
         } else {
             self.into()

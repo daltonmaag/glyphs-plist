@@ -661,7 +661,7 @@ impl FontMaster {
     pub fn iter_metrics<'a>(
         &'a self,
         font: &'a Font,
-    ) -> impl Iterator<Item = (&Metric, &MasterMetric)> {
+    ) -> impl Iterator<Item = (&'a Metric, &'a MasterMetric)> {
         font.metrics.iter().zip(self.metric_values.iter())
     }
 }
@@ -1444,7 +1444,8 @@ mod tests {
 
     #[test]
     fn parse_float_names() {
-        Font::load("testdata/FloatNames.glyphs").unwrap();
+        let font = Font::load("testdata/FloatNames.glyphs").unwrap();
+        println!("{:#?}", font.user_data);
     }
 
     #[test]
