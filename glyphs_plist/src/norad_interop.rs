@@ -12,11 +12,13 @@ impl From<&norad::Contour> for Path {
             .iter()
             .map(|contour| contour.into())
             .collect();
-        if contour.is_closed() {
+
+        if contour.is_closed() && !nodes.is_empty() {
             // In Glyphs.app, the starting node of a closed contour is
             // always stored at the end of the nodes list.
             nodes.rotate_left(1);
         }
+
         Self {
             attr: None,
             closed: contour.is_closed(),
@@ -34,14 +36,17 @@ impl TryFrom<&Path> for norad::Contour {
             .iter()
             .map(|node| node.try_into())
             .collect::<Result<Vec<norad::ContourPoint>, _>>()?;
-        if !path.closed {
-            // This logic comes from glyphsLib.
-            assert!(points[0].typ == norad::PointType::Line);
-            points[0].typ = norad::PointType::Move;
-        } else {
-            // In Glyphs.app, the starting node of a closed contour is
-            // always stored at the end of the nodes list.
-            points.rotate_right(1);
+
+        if !points.is_empty() {
+            if !path.closed {
+                // This logic comes from glyphsLib.
+                assert!(points[0].typ == norad::PointType::Line);
+                points[0].typ = norad::PointType::Move;
+            } else {
+                // In Glyphs.app, the starting node of a closed contour is
+                // always stored at the end of the nodes list.
+                points.rotate_right(1);
+            }
         }
         Ok(Self::new(points, None, None))
     }

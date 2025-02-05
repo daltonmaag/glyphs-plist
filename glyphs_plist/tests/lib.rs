@@ -59,3 +59,24 @@ fn open_contour_smooth_point() {
         )]
     );
 }
+
+#[test]
+fn roundtrip_empty_path() {
+    // Round-tripping paths without any nodes should not cause panics; they are
+    // representable in both file formats and can be loaded or created in
+    // Glyphs, even if not directly through the UI.
+    let path_source = r#"
+        {
+            nodes = ();
+        }
+    "#;
+
+    let plist = Plist::parse(path_source).unwrap();
+
+    let path = glyphs_plist::Path::try_from(plist).unwrap();
+    let contour = norad::Contour::try_from(&path).unwrap();
+    let path_again = glyphs_plist::Path::from(&contour);
+
+    assert!(path.nodes.is_empty());
+    assert_eq!(path, path_again);
+}
