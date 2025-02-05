@@ -1287,6 +1287,16 @@ impl Path {
     pub fn reverse(&mut self) {
         self.nodes.reverse();
     }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl ToPlist for HashMap<String, norad::Kerning> {
