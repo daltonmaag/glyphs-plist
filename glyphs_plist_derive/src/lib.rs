@@ -6,7 +6,7 @@ use quote::{quote, quote_spanned};
 use std::mem;
 use syn::ext::IdentExt;
 use syn::spanned::Spanned;
-use syn::{parse_macro_input, Attribute, Data, DeriveInput, Fields, LitStr, Path, Type, TypePath};
+use syn::{Attribute, Data, DeriveInput, Fields, LitStr, Path, Type, TypePath, parse_macro_input};
 
 #[derive(Debug)]
 enum PlistAttribute {
