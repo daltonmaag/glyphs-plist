@@ -1567,4 +1567,28 @@ mod tests {
         let plist = path_closed.to_plist().into_hashmap();
         assert_eq!(plist.get("closed"), Some(&Plist::Integer(1)));
     }
+
+    #[test]
+    fn loads_path_with_identifier() {
+        const TEST_DATA: &str = r#"
+        {
+          attr = {
+            identifier = ID0x4064e5db0;
+          };
+          closed = 1;
+          nodes = (
+            (
+              739,
+              -10,
+              o
+            )
+          );
+        }"#;
+
+        let path = Path::try_from(Plist::parse(TEST_DATA).unwrap()).expect("deserialises Path");
+        assert_eq!(
+            path.attr.as_ref().unwrap().identifier.as_deref(),
+            Some("ID0x4064e5db0")
+        );
+    }
 }
