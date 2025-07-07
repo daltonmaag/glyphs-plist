@@ -248,6 +248,7 @@ pub struct Path {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct PathAttrs {
+    pub identifier: Option<String>,
     pub line_cap_start: Option<f64>,
     pub line_cap_end: Option<f64>,
     pub stroke_pos: Option<i64>,

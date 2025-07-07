@@ -1,8 +1,8 @@
 use std::f64::consts::PI;
 
 use crate::{
-    font::{NodeAttrs, Scale},
     Anchor, Component, Node, NodeType, Path,
+    font::{NodeAttrs, Scale},
 };
 
 impl From<&norad::Contour> for Path {
