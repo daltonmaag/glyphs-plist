@@ -515,7 +515,7 @@ impl Font {
 
     pub fn save(self, path: &std::path::Path) -> Result<(), String> {
         let plist = self.to_plist();
-        fs::write(path, plist.to_string()).map_err(|e| format!("{:?}", e))
+        fs::write(path, plist.to_string()).map_err(|e| format!("{e:?}"))
     }
 
     pub fn get_glyph(&self, glyphname: &str) -> Option<&Glyph> {

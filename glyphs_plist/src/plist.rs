@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt::Write;
 use thiserror::Error;
 
 /// An enum representing a property list.
@@ -292,12 +293,8 @@ impl Plist {
                 s.push('}');
             }
             Plist::String(st) => escape_string(s, st),
-            Plist::Integer(i) => {
-                s.push_str(&format!("{}", i));
-            }
-            Plist::Float(f) => {
-                s.push_str(&format!("{}", f));
-            }
+            Plist::Integer(i) => write!(s, "{i}").unwrap(),
+            Plist::Float(f) => write!(s, "{f}").unwrap(),
         }
     }
 }
@@ -627,10 +624,10 @@ mod tests {
         #[test]
         fn escape_strings_float(num in proptest::num::f64::ANY) {
             let mut buf = String::new();
-            let num_str = format!("{}", num);
+            let num_str = format!("{num}");
             escape_string(&mut buf, &num_str);
 
-            assert_eq!(buf, format!("\"{}\"", num_str));
+            assert_eq!(buf, format!("\"{num_str}\""));
         }
     }
 
@@ -638,10 +635,10 @@ mod tests {
         #[test]
         fn escape_strings_int(num in proptest::num::i64::ANY) {
             let mut buf = String::new();
-            let num_str = format!("{}", num);
+            let num_str = format!("{num}");
             escape_string(&mut buf, &num_str);
 
-            assert_eq!(buf, format!("\"{}\"", num_str));
+            assert_eq!(buf, format!("\"{num_str}\""));
         }
     }
 
