@@ -10,8 +10,8 @@ edition = "2021"
 [dependencies]
 glyphs_plist_derive = { path = "../glyphs_plist_derive" }
 kurbo = "0.11"
-norad = { version = "0.14", features = ["kurbo"] }
-thiserror = "1"
+norad = { version = "0.16", features = ["kurbo"] }
+thiserror = "2"
 
 [dev-dependencies]
 maplit = "1.0.2"

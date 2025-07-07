@@ -48,7 +48,7 @@ impl TryFrom<&Path> for norad::Contour {
                 points.rotate_right(1);
             }
         }
-        Ok(Self::new(points, None, None))
+        Ok(Self::new(points, None))
     }
 }
 
@@ -97,7 +97,6 @@ impl TryFrom<&Node> for norad::ContourPoint {
                 .and_then(|attr| attr.name.as_deref())
                 .map(norad::Name::new)
                 .transpose()?,
-            None,
             None,
         ))
     }
@@ -212,7 +211,7 @@ impl TryFrom<&Component> for norad::Component {
             y_offset: f64_precision(transform.as_coeffs()[5], 5),
         };
 
-        Ok(Self::new(name, transform, None, None))
+        Ok(Self::new(name, transform, None))
     }
 }
 
@@ -241,7 +240,6 @@ impl TryFrom<&Anchor> for norad::Anchor {
             anchor.pos.x,
             anchor.pos.y,
             Some(name),
-            None,
             None,
             None,
         ))
@@ -304,7 +302,7 @@ mod tests {
 
     fn roundtrip_component(transform: norad::AffineTransform) {
         let name = norad::Name::new("comma").unwrap();
-        let norad_component1 = norad::Component::new(name, transform, None, None);
+        let norad_component1 = norad::Component::new(name, transform, None);
         let glyphs_component: crate::Component = (&norad_component1).into();
         let norad_component2: norad::Component = (&glyphs_component).try_into().unwrap();
 
@@ -349,7 +347,6 @@ mod tests {
             norad::PointType::Move,
             false,
             Some(norad::Name::new("hello world").unwrap()),
-            None,
             None,
         );
 

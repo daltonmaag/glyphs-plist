@@ -55,7 +55,6 @@ fn open_contour_smooth_point() {
             true,
             None,
             None,
-            None
         )]
     );
 }
