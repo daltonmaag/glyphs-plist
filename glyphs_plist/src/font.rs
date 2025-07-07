@@ -568,7 +568,7 @@ impl Layer {
             attr: Default::default(),
             name: Default::default(),
             background: Default::default(),
-            associated_master_id: associated_master_id.map(Into::into),
+            associated_master_id,
             layer_id: layer_id.into(),
             width: 600.0,
             vert_width: Default::default(),
