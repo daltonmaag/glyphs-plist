@@ -48,11 +48,7 @@ impl TryFrom<Plist> for i64 {
     type Error = VariantError;
 
     fn try_from(plist: Plist) -> Result<Self, Self::Error> {
-        match plist {
-            Plist::Integer(i) => Ok(i),
-            Plist::String(s) => s.parse::<i64>().or(Err(VariantError("integer"))),
-            _ => Err(VariantError("integer")),
-        }
+        plist.as_i64().ok_or(VariantError("integer"))
     }
 }
 
