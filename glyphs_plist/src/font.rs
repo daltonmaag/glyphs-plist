@@ -926,10 +926,10 @@ impl TryFrom<Plist> for InstanceType {
     type Error = InstanceTypeConversionError;
 
     fn try_from(plist: Plist) -> Result<Self, Self::Error> {
-        if let Plist::String(inner) = plist {
-            if inner == "variable" {
-                return Ok(InstanceType::Variable);
-            }
+        if let Plist::String(inner) = plist
+            && inner == "variable"
+        {
+            return Ok(InstanceType::Variable);
         }
         Err(InstanceTypeConversionError)
     }
