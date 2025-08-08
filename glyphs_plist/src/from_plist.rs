@@ -23,14 +23,20 @@ impl TryFrom<Plist> for bool {
     type Error = BoolConversionError;
 
     fn try_from(plist: Plist) -> Result<Self, Self::Error> {
-        plist
-            .as_i64()
-            .ok_or(BoolConversionError::WrongVariant)
-            .and_then(|n| match n {
-                0 => Ok(false),
-                1 => Ok(true),
-                _ => Err(BoolConversionError::BadNumber(n)),
-            })
+        let convert_number = |n| match n {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(BoolConversionError::BadNumber(n)),
+        };
+
+        match plist {
+            Plist::Integer(n) => convert_number(n),
+            Plist::String(s) => match s.parse::<i64>() {
+                Ok(n) => convert_number(n),
+                Err(_) => Err(BoolConversionError::WrongVariant),
+            },
+            _ => Err(BoolConversionError::WrongVariant),
+        }
     }
 }
 

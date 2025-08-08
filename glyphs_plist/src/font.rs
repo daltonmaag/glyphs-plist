@@ -63,6 +63,8 @@ pub struct Axis {
     pub tag: String,
     #[plist(default)]
     pub hidden: bool,
+    #[plist(default)]
+    pub default: f64,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
@@ -251,12 +253,12 @@ pub struct PathAttrs {
     pub identifier: Option<String>,
     pub line_cap_start: Option<f64>,
     pub line_cap_end: Option<f64>,
-    pub stroke_pos: Option<i64>,
+    pub stroke_pos: Option<f64>,
     pub stroke_height: Option<f64>,
     pub stroke_width: Option<f64>,
     pub stroke_color: Option<Vec<i64>>,
-    pub mask: Option<i64>,
-    pub fill: Option<i64>,
+    pub mask: Option<bool>,
+    pub fill: Option<bool>,
     pub fill_color: Option<Vec<i64>>,
     pub shadow: Option<PathShadow>,
     pub gradient: Option<PathGradient>,
@@ -924,10 +926,10 @@ impl TryFrom<Plist> for InstanceType {
     type Error = InstanceTypeConversionError;
 
     fn try_from(plist: Plist) -> Result<Self, Self::Error> {
-        if let Plist::String(inner) = plist {
-            if inner == "variable" {
-                return Ok(InstanceType::Variable);
-            }
+        if let Plist::String(inner) = plist
+            && inner == "variable"
+        {
+            return Ok(InstanceType::Variable);
         }
         Err(InstanceTypeConversionError)
     }
