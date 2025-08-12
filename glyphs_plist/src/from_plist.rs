@@ -41,14 +41,18 @@ impl TryFrom<Plist> for bool {
 }
 
 #[derive(Debug, Error)]
-#[error("expected {0}")]
-pub struct VariantError(pub(crate) &'static str);
+#[error("expected {0}, got {1:#?}")]
+pub struct VariantError(pub(crate) &'static str, Plist);
 
 impl TryFrom<Plist> for i64 {
     type Error = VariantError;
 
     fn try_from(plist: Plist) -> Result<Self, Self::Error> {
-        plist.as_i64().ok_or(VariantError("integer"))
+        match plist.clone() {
+            Plist::Integer(n) => Ok(n),
+            Plist::String(s) => s.parse::<i64>().map_err(|_| VariantError("integer", plist)),
+            _ => Err(VariantError("integer", plist)),
+        }
     }
 }
 
@@ -64,11 +68,20 @@ impl TryFrom<Plist> for u16 {
     type Error = DownsizeToU16Error;
 
     fn try_from(plist: Plist) -> Result<Self, Self::Error> {
-        if let Plist::Integer(int) = plist {
+        let convert_number = |int: i64| {
             int.try_into()
                 .map_err(|_| DownsizeToU16Error::OutOfBounds(int))
-        } else {
-            Err(DownsizeToU16Error::WrongVariant)
+        };
+
+        match plist {
+            Plist::Integer(n) => convert_number(n),
+            Plist::String(s) => {
+                let n: i64 = s
+                    .parse::<i64>()
+                    .map_err(|_| DownsizeToU16Error::WrongVariant)?;
+                convert_number(n)
+            }
+            _ => Err(DownsizeToU16Error::WrongVariant),
         }
     }
 }
@@ -77,7 +90,12 @@ impl TryFrom<Plist> for f64 {
     type Error = VariantError;
 
     fn try_from(plist: Plist) -> Result<Self, Self::Error> {
-        plist.as_f64().ok_or(VariantError("float"))
+        match plist.clone() {
+            Plist::Integer(i) => Ok(i as f64),
+            Plist::Float(f) => Ok(f),
+            Plist::String(s) => s.parse::<f64>().map_err(|_| VariantError("float", plist)),
+            _ => Err(VariantError("float", plist)),
+        }
     }
 }
 
