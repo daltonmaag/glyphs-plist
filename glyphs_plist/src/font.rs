@@ -315,6 +315,8 @@ pub struct Component {
     pub pos: Option<Point>,
     pub scale: Option<Scale>,
     pub slant: Option<Scale>,
+    pub alignment: Option<i64>,
+    pub anchor: Option<String>,
     #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
 }
