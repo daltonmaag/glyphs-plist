@@ -357,6 +357,8 @@ pub struct GuideLine {
     pub show_measurement: bool,
     pub orientation: Option<AnchorOrientation>,
     pub filter: Option<String>,
+    #[plist(default)]
+    pub user_data: HashMap<String, Plist>,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
