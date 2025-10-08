@@ -95,7 +95,7 @@ pub struct FontNumbers {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct FontStems {
-    pub name: String,
+    pub name: Option<String>,
     pub filter: Option<String>,
     #[plist(default)]
     pub horizontal: bool,
@@ -1593,6 +1593,35 @@ mod tests {
         assert_eq!(
             path.attr.as_ref().unwrap().identifier.as_deref(),
             Some("ID0x4064e5db0")
+        );
+    }
+
+    #[test]
+    fn loads_font_stems() {
+        const TEST_DATA: &str = r#"
+        (
+          {
+            horizontal = 1;
+          },
+          {}
+        )"#;
+
+        let stems = Vec::<FontStems>::try_from(Plist::parse(TEST_DATA).unwrap())
+            .expect("deserialises stems");
+        assert_eq!(
+            stems.as_slice(),
+            &[
+                FontStems {
+                    name: None,
+                    filter: None,
+                    horizontal: true,
+                },
+                FontStems {
+                    name: None,
+                    filter: None,
+                    horizontal: false,
+                }
+            ]
         );
     }
 }
