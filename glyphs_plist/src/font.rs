@@ -1383,7 +1383,7 @@ impl TryFrom<Plist> for HashMap<String, norad::Kerning> {
 // TODO: provide field/struct name (context) somehow, especially for errors in dervied code
 #[derive(Debug, Error)]
 pub enum GlyphsFromPlistError {
-    #[error("missing field {0}")]
+    #[error("missing field `{0}`")]
     MissingField(&'static str),
     #[error("unrecognised fields: {}", .0.join(", "))]
     UnrecognisedFields(Vec<String>),
