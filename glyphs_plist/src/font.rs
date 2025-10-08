@@ -95,7 +95,7 @@ pub struct FontNumbers {
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct FontStems {
-    pub name: String,
+    pub name: Option<String>,
     pub filter: Option<String>,
     #[plist(default)]
     pub horizontal: bool,
@@ -1383,7 +1383,7 @@ impl TryFrom<Plist> for HashMap<String, norad::Kerning> {
 // TODO: provide field/struct name (context) somehow, especially for errors in dervied code
 #[derive(Debug, Error)]
 pub enum GlyphsFromPlistError {
-    #[error("missing field {0}")]
+    #[error("missing field `{0}`")]
     MissingField(&'static str),
     #[error("unrecognised fields: {}", .0.join(", "))]
     UnrecognisedFields(Vec<String>),
@@ -1593,6 +1593,35 @@ mod tests {
         assert_eq!(
             path.attr.as_ref().unwrap().identifier.as_deref(),
             Some("ID0x4064e5db0")
+        );
+    }
+
+    #[test]
+    fn loads_font_stems() {
+        const TEST_DATA: &str = r#"
+        (
+          {
+            horizontal = 1;
+          },
+          {}
+        )"#;
+
+        let stems = Vec::<FontStems>::try_from(Plist::parse(TEST_DATA).unwrap())
+            .expect("deserialises stems");
+        assert_eq!(
+            stems.as_slice(),
+            &[
+                FontStems {
+                    name: None,
+                    filter: None,
+                    horizontal: true,
+                },
+                FontStems {
+                    name: None,
+                    filter: None,
+                    horizontal: false,
+                }
+            ]
         );
     }
 }
