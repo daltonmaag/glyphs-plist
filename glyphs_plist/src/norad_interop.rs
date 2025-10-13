@@ -129,6 +129,7 @@ impl From<&norad::Component> for Component {
             slant,
             alignment: None,
             anchor: None,
+            user_data: Default::default(),
             other_stuff: Default::default(),
         }
     }
