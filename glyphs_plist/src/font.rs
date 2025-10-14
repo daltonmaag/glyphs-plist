@@ -237,7 +237,7 @@ pub struct BackgroundLayer {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Shape {
     Path(Box<Path>),
-    Component(Component),
+    Component(Box<Component>),
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
@@ -654,7 +654,7 @@ impl Layer {
         })
     }
 
-    pub fn components(&self) -> impl Iterator<Item = &Component> {
+    pub fn components(&self) -> impl Iterator<Item = &Box<Component>> {
         self.shapes.iter().filter_map(|shape| match shape {
             Shape::Component(component) => Some(component),
             _ => None,
@@ -982,6 +982,7 @@ impl TryFrom<Plist> for Shape {
                 if dict.contains_key("ref") {
                     plist
                         .try_into()
+                        .map(Box::new)
                         .map(Shape::Component)
                         .map_err(Box::new)
                         .map_err(ShapeConversionError::BadComponent)
@@ -1003,7 +1004,7 @@ impl ToPlist for Shape {
     fn to_plist(self) -> Plist {
         match self {
             Shape::Path(path) => ToPlist::to_plist(*path),
-            Shape::Component(component) => ToPlist::to_plist(component),
+            Shape::Component(component) => ToPlist::to_plist(*component),
         }
     }
 }
