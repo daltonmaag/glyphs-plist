@@ -1,6 +1,5 @@
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::fmt::Write;
+use std::{borrow::Cow, collections::HashMap, fmt::Write};
+
 use thiserror::Error;
 
 /// An enum representing a property list.
@@ -76,7 +75,9 @@ fn numeric_ok(s: &str) -> bool {
     if s.is_empty() {
         return false;
     }
-    if s.iter().all(|&b| is_hex_upper(b)) && !s.iter().all(|&b| b.is_ascii_digit()) {
+    if s.iter().all(|&b| is_hex_upper(b))
+        && !s.iter().all(|&b| b.is_ascii_digit())
+    {
         return false;
     }
     if s.len() > 1 && s[0] == b'0' {
@@ -101,7 +102,7 @@ fn escape_string(buf: &mut String, s: &str) {
                 buf.push('"');
                 buf.push_str(s);
                 buf.push('"');
-            }
+            },
             Err(_) => buf.push_str(s),
         }
     } else {
@@ -115,7 +116,7 @@ fn escape_string(buf: &mut String, s: &str) {
                     buf.push_str(&s[start..ix]);
                     buf.push('\\');
                     start = ix;
-                }
+                },
                 _ => (),
             }
             ix += 1;
@@ -231,7 +232,7 @@ impl Plist {
                         return Err(Error::ExpectedSemicolon);
                     }
                 }
-            }
+            },
             Token::OpenParen => {
                 let mut list = Vec::new();
                 if let Some(ix) = Token::expect(s, ix, b')') {
@@ -249,7 +250,7 @@ impl Plist {
                         return Err(Error::ExpectedComma);
                     }
                 }
-            }
+            },
             _ => Err(Error::SomethingWentWrong),
         }
     }
@@ -277,7 +278,7 @@ impl Plist {
                     delim = ",\n";
                 }
                 s.push_str("\n)");
-            }
+            },
             Plist::Dictionary(a) => {
                 s.push_str("{\n");
                 let mut keys: Vec<_> = a.keys().collect();
@@ -291,7 +292,7 @@ impl Plist {
                     s.push_str(";\n");
                 }
                 s.push('}');
-            }
+            },
             Plist::String(st) => escape_string(s, st),
             Plist::Integer(i) => write!(s, "{i}").unwrap(),
             Plist::Float(f) => write!(s, "{f}").unwrap(),
@@ -325,7 +326,7 @@ impl<'a> Token<'a> {
                                 buf.into()
                             };
                             return Ok((Token::String(string), ix + 1));
-                        }
+                        },
                         b'\\' => {
                             buf.push_str(&s[cow_start..ix]);
                             ix += 1;
@@ -338,21 +339,24 @@ impl<'a> Token<'a> {
                                 b'n' => {
                                     buf.push('\n');
                                     cow_start = ix + 1;
-                                }
+                                },
                                 b'r' => {
                                     buf.push('\r');
                                     cow_start = ix + 1;
-                                }
+                                },
                                 _ => {
-                                    if (b'0'..=b'3').contains(&b) && ix + 2 < s.len() {
+                                    if (b'0'..=b'3').contains(&b)
+                                        && ix + 2 < s.len()
+                                    {
                                         // octal escape
                                         let b1 = s.as_bytes()[ix + 1];
                                         let b2 = s.as_bytes()[ix + 2];
                                         if (b'0'..=b'7').contains(&b1)
                                             && (b'0'..=b'7').contains(&b2)
                                         {
-                                            let oct =
-                                                (b - b'0') * 64 + (b1 - b'0') * 8 + (b2 - b'0');
+                                            let oct = (b - b'0') * 64
+                                                + (b1 - b'0') * 8
+                                                + (b2 - b'0');
                                             buf.push(oct as char);
                                             ix += 2;
                                             cow_start = ix + 1;
@@ -362,15 +366,15 @@ impl<'a> Token<'a> {
                                     } else {
                                         return Err(Error::UnknownEscape);
                                     }
-                                }
+                                },
                             }
                             ix += 1;
-                        }
+                        },
                         _ => ix += 1,
                     }
                 }
                 Err(Error::UnclosedString)
-            }
+            },
             _ => {
                 if is_alnum(b) {
                     let mut ix = start + 1;
@@ -382,9 +386,11 @@ impl<'a> Token<'a> {
                     }
                     Ok((Token::Atom(&s[start..ix]), ix))
                 } else {
-                    Err(Error::UnexpectedChar(s[start..].chars().next().unwrap()))
+                    Err(Error::UnexpectedChar(
+                        s[start..].chars().next().unwrap(),
+                    ))
                 }
-            }
+            },
         }
     }
 
@@ -536,7 +542,10 @@ mod macro_tests {
             "two" => 2,
         };
         let Plist::Dictionary(digits) = &digits else {
-            panic!("wrong Plist variant, expected Plist::Dictionary, got {digits:?}");
+            panic!(
+                "wrong Plist variant, expected Plist::Dictionary, got \
+                 {digits:?}"
+            );
         };
         assert_eq!(digits.len(), 2);
         assert_eq!(digits["one"], 1.into());
@@ -544,7 +553,10 @@ mod macro_tests {
 
         let empty = plist_dict! {};
         let Plist::Dictionary(empty) = &empty else {
-            panic!("wrong Plist variant, expected Plist::Dictionary, got {digits:?}");
+            panic!(
+                "wrong Plist variant, expected Plist::Dictionary, got \
+                 {digits:?}"
+            );
         };
         assert!(empty.is_empty());
 
@@ -560,16 +572,21 @@ mod macro_tests {
     fn test_plist_array() {
         let digits = plist_array![1, 2, 3];
         let Plist::Array(digits) = &digits else {
-            panic!("wrong Plist variant, expected Plist::Array, got {digits:?}");
+            panic!(
+                "wrong Plist variant, expected Plist::Array, got {digits:?}"
+            );
         };
-        assert_eq!(
-            digits,
-            &vec![Plist::from(1), Plist::from(2), Plist::from(3)],
-        );
+        assert_eq!(digits, &vec![
+            Plist::from(1),
+            Plist::from(2),
+            Plist::from(3)
+        ],);
 
         let repeated = plist_array![1; 5];
         let Plist::Array(repeated) = &repeated else {
-            panic!("wrong Plist variant, expected Plist::Array, got {repeated:?}");
+            panic!(
+                "wrong Plist variant, expected Plist::Array, got {repeated:?}"
+            );
         };
         assert_eq!(repeated, &vec![Plist::from(1); 5]);
 
@@ -585,11 +602,11 @@ mod macro_tests {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::Plist;
-
     use maplit::hashmap;
     use proptest::prelude::*;
+
+    use super::*;
+    use crate::Plist;
 
     #[test]
     fn quoting() {

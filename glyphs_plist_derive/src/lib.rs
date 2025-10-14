@@ -1,12 +1,14 @@
 extern crate proc_macro;
 
+use std::mem;
+
 use heck::ToLowerCamelCase;
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
-use std::mem;
-use syn::ext::IdentExt;
-use syn::spanned::Spanned;
-use syn::{Attribute, Data, DeriveInput, Fields, LitStr, Path, Type, TypePath, parse_macro_input};
+use syn::{
+    Attribute, Data, DeriveInput, Fields, LitStr, Path, Type, TypePath,
+    ext::IdentExt, parse_macro_input, spanned::Spanned,
+};
 
 #[derive(Debug)]
 enum PlistAttribute {
@@ -24,7 +26,10 @@ impl PlistAttribute {
         }
     }
 
-    fn take_default_to_tokens(&mut self, type_path: &Path) -> Option<TokenStream> {
+    fn take_default_to_tokens(
+        &mut self,
+        type_path: &Path,
+    ) -> Option<TokenStream> {
         if let PlistAttribute::Standard(inner) = self {
             inner.default.take_tokens(type_path)
         } else {
@@ -43,7 +48,9 @@ impl PlistAttribute {
 
 impl From<&[Attribute]> for PlistAttribute {
     fn from(attrs: &[Attribute]) -> Self {
-        let Some(plist_attr) = attrs.iter().find(|attr| attr.path().is_ident("plist")) else {
+        let Some(plist_attr) =
+            attrs.iter().find(|attr| attr.path().is_ident("plist"))
+        else {
             return PlistAttribute::None;
         };
         let mut rest = false;
@@ -65,16 +72,18 @@ impl From<&[Attribute]> for PlistAttribute {
                         Ok(stream) => {
                             let expr = stream.parse::<TokenStream>()?;
                             inner.default = PlistAttributeDefault::Expr(expr)
-                        }
+                        },
                         Err(_) => {
-                            // Presume the error was there not being an = and expr, use default
+                            // Presume the error was there not being an = and
+                            // expr, use default
                             // trait
                             inner.default = PlistAttributeDefault::DefaultTrait;
-                        }
+                        },
                     };
                     return Ok(());
                 }
-                if meta.path.is_ident("always_serialize") || meta.path.is_ident("always_serialise")
+                if meta.path.is_ident("always_serialize")
+                    || meta.path.is_ident("always_serialise")
                 {
                     inner.always_serialise = true;
                     return Ok(());
@@ -108,14 +117,11 @@ struct PlistAttributeInner {
 
 impl PlistAttributeInner {
     fn unused(&self) -> bool {
-        matches!(
-            self,
-            PlistAttributeInner {
-                serialised_name: None,
-                default: PlistAttributeDefault::None,
-                always_serialise: false
-            }
-        )
+        matches!(self, PlistAttributeInner {
+            serialised_name: None,
+            default: PlistAttributeDefault::None,
+            always_serialise: false
+        })
     }
 }
 
@@ -133,7 +139,9 @@ impl PlistAttributeDefault {
         mem::swap(self, &mut old_self);
         match old_self {
             PlistAttributeDefault::Expr(expr) => Some(expr),
-            PlistAttributeDefault::DefaultTrait => Some(quote! { <#type_path>::default() }),
+            PlistAttributeDefault::DefaultTrait => {
+                Some(quote! { <#type_path>::default() })
+            },
             PlistAttributeDefault::None => None,
         }
     }
@@ -299,8 +307,9 @@ fn add_deser(data: &Data) -> DeserialisedFields {
                 PlistAttribute::Rest => None,
             }
         });
-    // We have to put the #[plist(rest)] field in a separate variable to be able to interpolate it last,
-    // because it takes ownership of the hashmap that we're extracting the other fields' values from
+    // We have to put the #[plist(rest)] field in a separate variable to be able
+    // to interpolate it last, because it takes ownership of the hashmap
+    // that we're extracting the other fields' values from
     let collect_rest = fields
         .named
         .iter()

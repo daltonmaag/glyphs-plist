@@ -104,10 +104,13 @@ impl TryFrom<&Node> for norad::ContourPoint {
 
 impl From<&norad::Component> for Component {
     fn from(component: &norad::Component) -> Self {
-        let (rotation, slant, scale, pos) = if component.transform == Default::default() {
+        let (rotation, slant, scale, pos) = if component.transform
+            == Default::default()
+        {
             (None, None, None, None)
         } else {
-            let (s_x, s_y, r) = transform_struct_to_scale_and_rotation(&component.transform);
+            let (s_x, s_y, r) =
+                transform_struct_to_scale_and_rotation(&component.transform);
             (
                 Some(r),
                 None,
@@ -135,16 +138,22 @@ impl From<&norad::Component> for Component {
     }
 }
 
-fn transform_struct_to_scale_and_rotation(transform: &norad::AffineTransform) -> (f64, f64, f64) {
-    let det = transform.x_scale * transform.y_scale - transform.xy_scale * transform.yx_scale;
-    let mut s_x = (transform.x_scale.powi(2) + transform.xy_scale.powi(2)).sqrt();
-    let mut s_y = (transform.yx_scale.powi(2) + transform.y_scale.powi(2)).sqrt();
+fn transform_struct_to_scale_and_rotation(
+    transform: &norad::AffineTransform,
+) -> (f64, f64, f64) {
+    let det = transform.x_scale * transform.y_scale
+        - transform.xy_scale * transform.yx_scale;
+    let mut s_x =
+        (transform.x_scale.powi(2) + transform.xy_scale.powi(2)).sqrt();
+    let mut s_y =
+        (transform.yx_scale.powi(2) + transform.y_scale.powi(2)).sqrt();
 
     if det < 0.0 {
         s_y = -s_y;
     }
 
-    let mut r = (transform.xy_scale * s_y).atan2(transform.x_scale * s_x) * 180.0 / PI;
+    let mut r =
+        (transform.xy_scale * s_y).atan2(transform.x_scale * s_x) * 180.0 / PI;
 
     if det < 0.0 && (r.abs() > 135.0 || r < -90.0) {
         s_x = -s_x;
@@ -189,20 +198,23 @@ impl TryFrom<&Component> for norad::Component {
             .as_ref()
             .map(|s| s.horizontal)
             .unwrap_or(1.0);
-        let scale_y = component.scale.as_ref().map(|s| s.vertical).unwrap_or(1.0);
+        let scale_y =
+            component.scale.as_ref().map(|s| s.vertical).unwrap_or(1.0);
         let skew_x = component
             .slant
             .as_ref()
             .map(|p| p.horizontal)
             .unwrap_or(0.0);
-        let skew_y = component.slant.as_ref().map(|p| p.vertical).unwrap_or(0.0);
+        let skew_y =
+            component.slant.as_ref().map(|p| p.vertical).unwrap_or(0.0);
 
         // Warning: Don't use kurbo's .then_* methods because they apply the ops
         // in the wrong order! This matches the order glyphsLib does it in.
-        let transform = kurbo::Affine::translate(kurbo::Vec2::new(offset_x, offset_y))
-            * kurbo::Affine::rotate(rotation)
-            * kurbo::Affine::scale_non_uniform(scale_x, scale_y)
-            * kurbo::Affine::skew(skew_x, skew_y);
+        let transform =
+            kurbo::Affine::translate(kurbo::Vec2::new(offset_x, offset_y))
+                * kurbo::Affine::rotate(rotation)
+                * kurbo::Affine::scale_non_uniform(scale_x, scale_y)
+                * kurbo::Affine::skew(skew_x, skew_y);
 
         // Round values for roundtrip testing.
         let transform = norad::AffineTransform {
@@ -307,7 +319,8 @@ mod tests {
         let name = norad::Name::new("comma").unwrap();
         let norad_component1 = norad::Component::new(name, transform, None);
         let glyphs_component: crate::Component = (&norad_component1).into();
-        let norad_component2: norad::Component = (&glyphs_component).try_into().unwrap();
+        let norad_component2: norad::Component =
+            (&glyphs_component).try_into().unwrap();
 
         let t1 = norad_component1.transform;
         let t2 = norad_component2.transform;
