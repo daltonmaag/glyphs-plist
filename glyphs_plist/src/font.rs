@@ -647,16 +647,16 @@ impl Layer {
         self.attr.as_ref().and_then(|a| a.coordinates.as_deref())
     }
 
-    pub fn paths(&self) -> impl Iterator<Item = &Box<Path>> {
+    pub fn paths(&self) -> impl Iterator<Item = &Path> {
         self.shapes.iter().filter_map(|shape| match shape {
-            Shape::Path(path) => Some(path),
+            Shape::Path(path) => Some(path.as_ref()),
             _ => None,
         })
     }
 
-    pub fn components(&self) -> impl Iterator<Item = &Box<Component>> {
+    pub fn components(&self) -> impl Iterator<Item = &Component> {
         self.shapes.iter().filter_map(|shape| match shape {
-            Shape::Component(component) => Some(component),
+            Shape::Component(component) => Some(component.as_ref()),
             _ => None,
         })
     }
