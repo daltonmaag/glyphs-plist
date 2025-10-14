@@ -46,17 +46,14 @@ fn open_contour_smooth_point() {
     let contour = norad::Contour::try_from(&path).unwrap();
 
     assert!(!contour.is_closed());
-    assert_eq!(
-        contour.points,
-        vec![norad::ContourPoint::new(
-            303.0,
-            128.0,
-            norad::PointType::Move,
-            true,
-            None,
-            None,
-        )]
-    );
+    assert_eq!(contour.points, vec![norad::ContourPoint::new(
+        303.0,
+        128.0,
+        norad::PointType::Move,
+        true,
+        None,
+        None,
+    )]);
 }
 
 #[test]

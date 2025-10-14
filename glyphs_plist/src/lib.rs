@@ -7,9 +7,10 @@ mod plist;
 mod to_plist;
 
 pub use font::{
-    Anchor, Axis, BackgroundLayer, Component, Font, FontLoadError, FontMaster, FontNumbers,
-    FontStems, Glyph, GlyphsFromPlistError, Instance, Layer, LayerAttr, MasterMetric, Metric,
-    MetricType, Node, NodeType, Path, Settings, Shape,
+    Anchor, Axis, BackgroundLayer, Component, Font, FontLoadError, FontMaster,
+    FontNumbers, FontStems, Glyph, GlyphsFromPlistError, Instance, Layer,
+    LayerAttr, MasterMetric, Metric, MetricType, Node, NodeType, Path,
+    Settings, Shape,
 };
 pub use from_plist::FromPlist;
 pub use plist::Plist;

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
-use thiserror::Error;
 
 pub use glyphs_plist_derive::FromPlist;
+use thiserror::Error;
 
 use crate::plist::Plist;
 
@@ -50,7 +50,9 @@ impl TryFrom<Plist> for i64 {
     fn try_from(plist: Plist) -> Result<Self, Self::Error> {
         match &plist {
             Plist::Integer(n) => Ok(*n),
-            Plist::String(s) => s.parse::<i64>().map_err(|_| VariantError("integer", plist)),
+            Plist::String(s) => {
+                s.parse::<i64>().map_err(|_| VariantError("integer", plist))
+            },
             _ => Err(VariantError("integer", plist)),
         }
     }
@@ -80,7 +82,7 @@ impl TryFrom<Plist> for u16 {
                     .parse::<i64>()
                     .map_err(|_| DownsizeToU16Error::WrongVariant(plist))?;
                 convert_number(n)
-            }
+            },
             _ => Err(DownsizeToU16Error::WrongVariant(plist)),
         }
     }
@@ -93,7 +95,9 @@ impl TryFrom<Plist> for f64 {
         match &plist {
             Plist::Integer(i) => Ok(*i as f64),
             Plist::Float(f) => Ok(*f),
-            Plist::String(s) => s.parse::<f64>().map_err(|_| VariantError("float", plist)),
+            Plist::String(s) => {
+                s.parse::<f64>().map_err(|_| VariantError("float", plist))
+            },
             _ => Err(VariantError("float", plist)),
         }
     }
