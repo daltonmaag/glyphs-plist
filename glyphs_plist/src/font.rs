@@ -4,18 +4,19 @@
 //! There are lots of other ways this could go, including something serde-like
 //! where it gets serialized to more Rust-native structures, proc macros, etc.
 
-use std::collections::HashMap;
-use std::convert::Infallible;
-use std::{fs, io};
+use std::{collections::HashMap, convert::Infallible, fs, io};
 
 use kurbo::Point;
 use thiserror::Error;
 
-use crate::from_plist::{
-    ArrayConversionError, BoolConversionError, DownsizeToU16Error, FromPlist, VariantError,
+use crate::{
+    from_plist::{
+        ArrayConversionError, BoolConversionError, DownsizeToU16Error,
+        FromPlist, VariantError,
+    },
+    plist::Plist,
+    to_plist::ToPlist,
 };
-use crate::plist::Plist;
-use crate::to_plist::ToPlist;
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Font {
@@ -509,7 +510,9 @@ impl Font {
         Self::default()
     }
 
-    pub fn load(path: impl AsRef<std::path::Path>) -> Result<Font, FontLoadError> {
+    pub fn load(
+        path: impl AsRef<std::path::Path>,
+    ) -> Result<Font, FontLoadError> {
         let contents = fs::read_to_string(path)?;
         let plist = Plist::parse(&contents)?;
 
@@ -536,7 +539,10 @@ impl Font {
 }
 
 impl Glyph {
-    pub fn new(glyphname: impl Into<norad::Name>, unicodes: Option<norad::Codepoints>) -> Self {
+    pub fn new(
+        glyphname: impl Into<norad::Name>,
+        unicodes: Option<norad::Codepoints>,
+    ) -> Self {
         Self {
             glyphname: glyphname.into(),
             unicode: unicodes,
@@ -572,7 +578,10 @@ impl Glyph {
 }
 
 impl Layer {
-    pub fn new(layer_id: impl Into<String>, associated_master_id: Option<String>) -> Self {
+    pub fn new(
+        layer_id: impl Into<String>,
+        associated_master_id: Option<String>,
+    ) -> Self {
         Self {
             attr: Default::default(),
             name: Default::default(),
@@ -723,11 +732,14 @@ impl TryFrom<Plist> for norad::Name {
 
     fn try_from(plist: Plist) -> Result<Self, Self::Error> {
         match plist {
-            Plist::String(s) => Self::new(s.as_str())
-                .map_err(|_| panic!("glyph name {s:?} valid in Glyphs but not norad")),
-            // Due to Glyphs.app quirks removing quotes around the name "infinity",
-            // it is parsed as a float instead.
-            Plist::Float(f) if f.is_infinite() => Ok(Self::new("infinity").unwrap()),
+            Plist::String(s) => Self::new(s.as_str()).map_err(|_| {
+                panic!("glyph name {s:?} valid in Glyphs but not norad")
+            }),
+            // Due to Glyphs.app quirks removing quotes around the name
+            // "infinity", it is parsed as a float instead.
+            Plist::Float(f) if f.is_infinite() => {
+                Ok(Self::new("infinity").unwrap())
+            },
             Plist::Float(f) if f.is_nan() => Ok(Self::new("nan").unwrap()),
             _ => Err(NameConversionError),
         }
@@ -750,7 +762,9 @@ impl TryFrom<Plist> for AnchorOrientation {
             Plist::String(s) => match s.as_str() {
                 "center" => Ok(AnchorOrientation::Center),
                 "right" => Ok(AnchorOrientation::Right),
-                _ => Err(AnchorOrientationConversionError::UnknownOrientation(s)),
+                _ => {
+                    Err(AnchorOrientationConversionError::UnknownOrientation(s))
+                },
             },
             _ => Err(AnchorOrientationConversionError::WrongVariant),
         }
@@ -770,7 +784,10 @@ impl ToPlist for AnchorOrientation {
 pub enum ColorConversionError {
     #[error("color can only be parsed from an integer or integer array")]
     WrongVariant,
-    #[error("color array must contain 2 (gray, alpha), 4 (RGBA) or 5 (CMYKA) numbers")]
+    #[error(
+        "color array must contain 2 (gray, alpha), 4 (RGBA) or 5 (CMYKA) \
+         numbers"
+    )]
     UnsupportedArray,
     #[error("{0} is out-of-bounds for a u8")]
     OutOfBounds(i64),
@@ -786,7 +803,9 @@ impl TryFrom<Plist> for Color {
                 let numbers: Result<Vec<u8>, _> = array
                     .iter()
                     .map(|v| {
-                        let n = v.as_i64().ok_or(ColorConversionError::WrongVariant)?;
+                        let n = v
+                            .as_i64()
+                            .ok_or(ColorConversionError::WrongVariant)?;
                         n.try_into()
                             .map_err(|_| ColorConversionError::OutOfBounds(n))
                     })
@@ -797,7 +816,7 @@ impl TryFrom<Plist> for Color {
                     [c, m, y, k, a] => Ok(Color::Cmyka(c, m, y, k, a)),
                     _ => Err(ColorConversionError::UnsupportedArray),
                 }
-            }
+            },
             _ => Err(ColorConversionError::WrongVariant),
         }
     }
@@ -808,10 +827,16 @@ impl ToPlist for Color {
         match self {
             Color::Index(int) => int.into(),
             Color::GreyAlpha(g, a) => Plist::Array(vec![g.into(), a.into()]),
-            Color::Rgba(r, g, b, a) => Plist::Array(vec![r.into(), g.into(), b.into(), a.into()]),
-            Color::Cmyka(c, m, y, k, a) => {
-                Plist::Array(vec![c.into(), m.into(), y.into(), k.into(), a.into()])
-            }
+            Color::Rgba(r, g, b, a) => {
+                Plist::Array(vec![r.into(), g.into(), b.into(), a.into()])
+            },
+            Color::Cmyka(c, m, y, k, a) => Plist::Array(vec![
+                c.into(),
+                m.into(),
+                y.into(),
+                k.into(),
+                a.into(),
+            ]),
         }
     }
 }
@@ -994,7 +1019,7 @@ impl TryFrom<Plist> for Shape {
                         .map_err(Box::new)
                         .map_err(ShapeConversionError::BadPath)
                 }
-            }
+            },
             _ => Err(ShapeConversionError::WrongVariant),
         }
     }
@@ -1017,7 +1042,10 @@ impl ToPlist for norad::Name {
 
 #[derive(Debug, Error)]
 pub enum CodepointsConversionError {
-    #[error("unicode code point must be in the range U+0000–U+10FFFF, got U+{0:04X}")]
+    #[error(
+        "unicode code point must be in the range U+0000–U+10FFFF, got \
+         U+{0:04X}"
+    )]
     InvalidCodepoint(i64),
     #[error("codepoints can only be parsed from an integer or integer array")]
     WrongVariant,
@@ -1031,13 +1059,14 @@ impl TryFrom<Plist> for norad::Codepoints {
             let cp: u32 = n
                 .try_into()
                 .map_err(|_| CodepointsConversionError::InvalidCodepoint(n))?;
-            char::try_from(cp).map_err(|_| CodepointsConversionError::InvalidCodepoint(n))
+            char::try_from(cp)
+                .map_err(|_| CodepointsConversionError::InvalidCodepoint(n))
         };
         match plist {
             Plist::Integer(n) => {
                 let cp = parse_one(n)?;
                 Ok(norad::Codepoints::new([cp]))
-            }
+            },
             Plist::Array(array) => array
                 .into_iter()
                 .map(|item| {
@@ -1059,7 +1088,9 @@ impl ToPlist for norad::Codepoints {
         if self.len() == 1 {
             Plist::Integer(self.iter().next().unwrap() as i64)
         } else {
-            Plist::Array(self.iter().map(|cp| Plist::Integer(cp as i64)).collect())
+            Plist::Array(
+                self.iter().map(|cp| Plist::Integer(cp as i64)).collect(),
+            )
         }
     }
 }
@@ -1345,7 +1376,10 @@ impl ToPlist for HashMap<String, norad::Kerning> {
 
 #[derive(Debug, Error)]
 pub enum KerningConversionError {
-    #[error("kerning can only be parsed from a dict[master name, dict[left, dict[right, value]]]")]
+    #[error(
+        "kerning can only be parsed from a dict[master name, dict[left, \
+         dict[right, value]]]"
+    )]
     WrongVariant,
     #[error("kerning value for /{left_name}/{right_name} was not a float")]
     NotFloatValue {
@@ -1372,21 +1406,30 @@ impl TryFrom<Plist> for HashMap<String, norad::Kerning> {
                         let Plist::Dictionary(kerns) = kerns else {
                             return Err(KerningConversionError::WrongVariant);
                         };
-                        let left_name = norad::Name::new(&left).unwrap_or_else(|_| {
-                            panic!("glyph name {left:?} valid in Glyphs but not norad")
-                        });
+                        let left_name =
+                            norad::Name::new(&left).unwrap_or_else(|_| {
+                                panic!(
+                                    "glyph name {left:?} valid in Glyphs but \
+                                     not norad"
+                                )
+                            });
                         let norad_kerns = kerns
                             .into_iter()
                             .map(|(right, value)| {
-                                let right_name = norad::Name::new(&right).unwrap_or_else(|_| {
-                                    panic!("glyph name {right:?} valid in Glyphs but not norad")
-                                });
-                                let value = value.as_f64().ok_or_else(|| {
-                                    KerningConversionError::NotFloatValue {
-                                        left_name: left.clone(),
-                                        right_name: right.clone(),
-                                    }
-                                })?;
+                                let right_name = norad::Name::new(&right)
+                                    .unwrap_or_else(|_| {
+                                        panic!(
+                                            "glyph name {right:?} valid in \
+                                             Glyphs but not norad"
+                                        )
+                                    });
+                                let value =
+                                    value.as_f64().ok_or_else(|| {
+                                        KerningConversionError::NotFloatValue {
+                                            left_name: left.clone(),
+                                            right_name: right.clone(),
+                                        }
+                                    })?;
                                 Ok((right_name, value))
                             })
                             .collect::<Result<_, _>>()?;
@@ -1399,7 +1442,8 @@ impl TryFrom<Plist> for HashMap<String, norad::Kerning> {
     }
 }
 
-// TODO: provide field/struct name (context) somehow, especially for errors in dervied code
+// TODO: provide field/struct name (context) somehow, especially for errors in
+// dervied code
 #[derive(Debug, Error)]
 pub enum GlyphsFromPlistError {
     #[error("missing field `{0}`")]
@@ -1511,7 +1555,8 @@ mod tests {
         // TODO: Run on all test fixtures.
         let font = Font::load("testdata/GlyphsFileFormatv3.glyphs").unwrap();
 
-        let other_keys = font.other_stuff.keys().cloned().collect::<HashSet<_>>();
+        let other_keys =
+            font.other_stuff.keys().cloned().collect::<HashSet<_>>();
 
         let disallowed = other_keys
             .difference(&HashSet::from([
@@ -1569,8 +1614,10 @@ mod tests {
         // closed, and so we should ensure that our default value respects this
         // when reading.
 
-        let ambiguous =
-            Plist::Dictionary(HashMap::from([("nodes".to_string(), Plist::Array(vec![]))]));
+        let ambiguous = Plist::Dictionary(HashMap::from([(
+            "nodes".to_string(),
+            Plist::Array(vec![]),
+        )]));
 
         let path = Path::try_from(ambiguous).unwrap();
         assert!(path.closed);
@@ -1608,7 +1655,8 @@ mod tests {
           );
         }"#;
 
-        let path = Path::try_from(Plist::parse(TEST_DATA).unwrap()).expect("deserialises Path");
+        let path = Path::try_from(Plist::parse(TEST_DATA).unwrap())
+            .expect("deserialises Path");
         assert_eq!(
             path.attr.as_ref().unwrap().identifier.as_deref(),
             Some("ID0x4064e5db0")
@@ -1625,22 +1673,20 @@ mod tests {
           {}
         )"#;
 
-        let stems = Vec::<FontStems>::try_from(Plist::parse(TEST_DATA).unwrap())
-            .expect("deserialises stems");
-        assert_eq!(
-            stems.as_slice(),
-            &[
-                FontStems {
-                    name: None,
-                    filter: None,
-                    horizontal: true,
-                },
-                FontStems {
-                    name: None,
-                    filter: None,
-                    horizontal: false,
-                }
-            ]
-        );
+        let stems =
+            Vec::<FontStems>::try_from(Plist::parse(TEST_DATA).unwrap())
+                .expect("deserialises stems");
+        assert_eq!(stems.as_slice(), &[
+            FontStems {
+                name: None,
+                filter: None,
+                horizontal: true,
+            },
+            FontStems {
+                name: None,
+                filter: None,
+                horizontal: false,
+            }
+        ]);
     }
 }
