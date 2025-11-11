@@ -40,6 +40,8 @@ pub struct Font {
     pub font_master: Vec<FontMaster>,
     #[plist(always_serialise)]
     pub metrics: Vec<Metric>,
+    #[plist(rename = "DisplayStrings")]
+    pub display_strings: Option<Vec<String>>,
     pub axes: Option<Vec<Axis>>,
     pub numbers: Option<Vec<FontNumbers>>,
     pub stems: Option<Vec<FontStems>>,
@@ -478,6 +480,7 @@ impl Default for Font {
                     r#type: Some(MetricType::Descender),
                 },
             ],
+            display_strings: None,
             axes: Default::default(),
             numbers: Default::default(),
             stems: Default::default(),
