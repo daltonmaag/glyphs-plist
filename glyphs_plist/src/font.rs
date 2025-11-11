@@ -527,9 +527,10 @@ impl Font {
         Ok(plist.try_into()?)
     }
 
-    pub fn save(self, path: &std::path::Path) -> Result<(), String> {
+    pub fn save(self, path: impl AsRef<std::path::Path>) -> io::Result<()> {
         let plist = self.to_plist();
-        fs::write(path, plist.to_string()).map_err(|e| format!("{e:?}"))
+        // Glyphs has bugs dealing with CRLF line endings, so ensure we have LF
+        fs::write(path, plist.to_string().replace("\r\n", "\n"))
     }
 
     pub fn get_glyph(&self, glyphname: &str) -> Option<&Glyph> {
