@@ -344,29 +344,24 @@ impl<'a> Token<'a> {
                                     buf.push('\r');
                                     cow_start = ix + 1;
                                 },
-                                _ => {
-                                    if (b'0'..=b'3').contains(&b)
-                                        && ix + 2 < s.len()
+                                b'0'..=b'3' if ix + 2 < s.len() => {
+                                    // octal escape
+                                    let b1 = s.as_bytes()[ix + 1];
+                                    let b2 = s.as_bytes()[ix + 2];
+                                    if (b'0'..=b'7').contains(&b1)
+                                        && (b'0'..=b'7').contains(&b2)
                                     {
-                                        // octal escape
-                                        let b1 = s.as_bytes()[ix + 1];
-                                        let b2 = s.as_bytes()[ix + 2];
-                                        if (b'0'..=b'7').contains(&b1)
-                                            && (b'0'..=b'7').contains(&b2)
-                                        {
-                                            let oct = (b - b'0') * 64
-                                                + (b1 - b'0') * 8
-                                                + (b2 - b'0');
-                                            buf.push(oct as char);
-                                            ix += 2;
-                                            cow_start = ix + 1;
-                                        } else {
-                                            return Err(Error::UnknownEscape);
-                                        }
+                                        let oct = (b - b'0') * 64
+                                            + (b1 - b'0') * 8
+                                            + (b2 - b'0');
+                                        buf.push(oct as char);
+                                        ix += 2;
+                                        cow_start = ix + 1;
                                     } else {
                                         return Err(Error::UnknownEscape);
                                     }
                                 },
+                                _ => return Err(Error::UnknownEscape),
                             }
                             ix += 1;
                         },
