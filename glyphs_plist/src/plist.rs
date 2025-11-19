@@ -20,6 +20,10 @@ pub enum Error {
     UnclosedString,
     #[error("unknown escape")]
     UnknownEscape,
+    #[error("non-hex character in unicode escape")]
+    InvalidUnicode,
+    #[error("unknown unicode \"\\U{0:X}\"")]
+    UnknownUnicode(u32),
     #[error("expected string")]
     NotAString,
     #[error("expected `=`")]
@@ -343,6 +347,24 @@ impl<'a> Token<'a> {
                                 b'r' => {
                                     buf.push('\r');
                                     cow_start = ix + 1;
+                                },
+                                b'U' => {
+                                    // Unicode escape, always 4 digits
+                                    let u_start = ix + 1;
+                                    let u_end = u_start + 4;
+                                    if u_end >= s.len() {
+                                        return Err(Error::UnknownEscape);
+                                    }
+                                    let hex_val = u32::from_str_radix(
+                                        &s[u_start..u_end],
+                                        16,
+                                    )
+                                    .map_err(|_| Error::InvalidUnicode)?;
+                                    let char = char::from_u32(hex_val).ok_or(
+                                        Error::UnknownUnicode(hex_val),
+                                    )?;
+                                    buf.push(char);
+                                    cow_start = u_end;
                                 },
                                 b'0'..=b'3' if ix + 2 < s.len() => {
                                     // octal escape
@@ -671,5 +693,35 @@ mod tests {
         buf.clear();
         escape_string(&mut buf, "-infinity");
         assert_eq!(buf, "\"-infinity\"");
+    }
+
+    #[test]
+    fn unicode_escapes() {
+        let input = r#""\U06211\U066E.\U062D\U066E1""#;
+        let (Token::String(parsed), _) =
+            Token::lex(input, 0).expect("should lex")
+        else {
+            panic!("lexed as wrong token type");
+        };
+        assert_eq!(parsed, "\u{0621}1\u{066E}.\u{062D}\u{066E}1");
+
+        // 0xD800–0xDFFF are reserved and never valid Unicode scalar values
+        let input = r#""\UD800""#;
+        let Err(err) = Token::lex(input, 0) else {
+            panic!("shouldn't lex");
+        };
+        assert!(matches!(err, Error::UnknownUnicode(0xD800)));
+
+        let input = r#""\U12""#;
+        let Err(err) = Token::lex(input, 0) else {
+            panic!("shouldn't lex");
+        };
+        assert!(matches!(err, Error::UnknownEscape));
+
+        let input = r#""\U12hithere""#;
+        let Err(err) = Token::lex(input, 0) else {
+            panic!("shouldn't lex");
+        };
+        assert!(matches!(err, Error::InvalidUnicode));
     }
 }
