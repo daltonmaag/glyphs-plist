@@ -705,12 +705,13 @@ mod tests {
         };
         assert_eq!(parsed, "\u{0621}1\u{066E}.\u{062D}\u{066E}1");
 
-        // 0xD800–0xDFFF are reserved and never valid Unicode scalar values
-        let input = r#""\UD800""#;
-        let Err(err) = Token::lex(input, 0) else {
-            panic!("shouldn't lex");
+        let input = r#""\UD83D\UDE01""#;
+        let (Token::String(parsed), _) =
+            Token::lex(input, 0).expect("should lex")
+        else {
+            panic!("lexed as wrong token type");
         };
-        assert!(matches!(err, Error::UnknownUnicode(0xD800)));
+        assert_eq!(parsed, "😁");
 
         let input = r#""\U12""#;
         let Err(err) = Token::lex(input, 0) else {
