@@ -1,4 +1,6 @@
-use std::{borrow::Cow, collections::HashMap, fmt::Write};
+use std::{
+    borrow::Cow, char::DecodeUtf16Error, collections::HashMap, fmt::Write,
+};
 
 use thiserror::Error;
 
@@ -20,10 +22,8 @@ pub enum Error {
     UnclosedString,
     #[error("unknown escape")]
     UnknownEscape,
-    #[error("non-hex character in unicode escape")]
+    #[error("invalid unicode escape")]
     InvalidUnicode,
-    #[error("unknown unicode \"\\U{0:X}\"")]
-    UnknownUnicode(u32),
     #[error("expected string")]
     NotAString,
     #[error("expected `=`")]
@@ -36,12 +36,19 @@ pub enum Error {
     SomethingWentWrong,
 }
 
+#[derive(Debug)]
 enum Token<'a> {
     Eof,
     OpenBrace,
     OpenParen,
     String(Cow<'a, str>),
     Atom(&'a str),
+}
+
+#[derive(Debug)]
+struct UnicodeEscapeLexer<'a> {
+    slice: &'a str,
+    index: usize,
 }
 
 fn is_numeric(b: u8) -> bool {
@@ -350,21 +357,23 @@ impl<'a> Token<'a> {
                                 },
                                 b'U' => {
                                     // Unicode escape, always 4 digits
-                                    let u_start = ix + 1;
-                                    let u_end = u_start + 4;
-                                    if u_end >= s.len() {
-                                        return Err(Error::UnknownEscape);
-                                    }
-                                    let hex_val = u32::from_str_radix(
-                                        &s[u_start..u_end],
-                                        16,
-                                    )
-                                    .map_err(|_| Error::InvalidUnicode)?;
-                                    let char = char::from_u32(hex_val).ok_or(
-                                        Error::UnknownUnicode(hex_val),
-                                    )?;
-                                    buf.push(char);
-                                    cow_start = u_end;
+                                    ix -= 1; // UnicodeEscapeLexer wants the \ too
+                                    let uni_parser =
+                                        UnicodeEscapeLexer::new(&s[ix..]);
+                                    let (index_offset, uni_seq) =
+                                        uni_parser.consume_escapes()?;
+                                    char::decode_utf16(uni_seq)
+                                        .try_fold(&mut buf, |buf, char_res| -> Result<_, DecodeUtf16Error> {
+                                            let char = char_res?;
+                                            buf.push(char);
+                                            Ok(buf)
+                                        })
+                                        .map_err(|_| Error::InvalidUnicode)?;
+                                    ix += index_offset;
+                                    cow_start = ix;
+                                    // Avoid the unconditional ix += 1, which we
+                                    // don't need
+                                    continue;
                                 },
                                 b'0'..=b'3' if ix + 2 < s.len() => {
                                     // octal escape
@@ -428,6 +437,51 @@ impl<'a> Token<'a> {
             }
         }
         None
+    }
+}
+
+impl<'a> UnicodeEscapeLexer<'a> {
+    // \UXXXX
+    const ESCAPE_LEN: usize = 6;
+
+    fn new(slice: &'a str) -> Self {
+        // Not strictly required, but you're probably holding it wrong if this
+        // isn't the case
+        debug_assert!(
+            slice.starts_with(r"\U"),
+            "UnicodeEscapeLexer: slice should start with \\U"
+        );
+        Self { slice, index: 0 }
+    }
+
+    fn remaining(&self) -> usize {
+        self.slice.len() - self.index
+    }
+
+    fn consume_escapes(mut self) -> Result<(usize, Vec<u16>), Error> {
+        let mut seq = Vec::with_capacity(1);
+        loop {
+            match self.remaining() {
+                // Not enough left to parse anything or cause any problems
+                0..2 => return Ok((self.index, seq)),
+                // Nothing relevant left
+                2.. if &self.slice[self.index..self.index + 2] != r"\U" => {
+                    return Ok((self.index, seq));
+                },
+                // Not enough hex digits after the \U
+                2..Self::ESCAPE_LEN => return Err(Error::InvalidUnicode),
+                // All good, advance and try to parse something
+                Self::ESCAPE_LEN.. => {
+                    self.index += 2;
+                    let nibble = &self.slice[self.index..self.index + 4];
+                    let Ok(nibble) = u16::from_str_radix(nibble, 16) else {
+                        return Err(Error::InvalidUnicode);
+                    };
+                    self.index += 4;
+                    seq.push(nibble);
+                },
+            }
+        }
     }
 }
 
@@ -717,12 +771,18 @@ mod tests {
         let Err(err) = Token::lex(input, 0) else {
             panic!("shouldn't lex");
         };
-        assert!(matches!(err, Error::UnknownEscape));
+        assert!(matches!(err, Error::InvalidUnicode));
 
         let input = r#""\U12hithere""#;
         let Err(err) = Token::lex(input, 0) else {
             panic!("shouldn't lex");
         };
         assert!(matches!(err, Error::InvalidUnicode));
+
+        let input = r#""\U1234"#;
+        let Err(err) = Token::lex(input, 0) else {
+            panic!("shouldn't lex");
+        };
+        assert!(matches!(err, Error::UnclosedString));
     }
 }
