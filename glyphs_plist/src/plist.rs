@@ -356,7 +356,10 @@ impl<'a> Token<'a> {
                                     cow_start = ix + 1;
                                 },
                                 b'U' => {
-                                    // Unicode escape, always 4 digits
+                                    // Unicode escapes come in the form \U1234,
+                                    // and may be chained for more complex
+                                    // characters (such as emoji), following
+                                    // UTF-16
                                     ix -= 1; // UnicodeEscapeLexer wants the \ too
                                     let uni_parser =
                                         UnicodeEscapeLexer::new(&s[ix..]);
@@ -441,8 +444,7 @@ impl<'a> Token<'a> {
 }
 
 impl<'a> UnicodeEscapeLexer<'a> {
-    // \UXXXX
-    const ESCAPE_LEN: usize = 6;
+    const ESCAPE_LEN: usize = r"\U1234".len();
 
     fn new(slice: &'a str) -> Self {
         // Not strictly required, but you're probably holding it wrong if this
@@ -473,12 +475,12 @@ impl<'a> UnicodeEscapeLexer<'a> {
                 // All good, advance and try to parse something
                 Self::ESCAPE_LEN.. => {
                     self.index += 2;
-                    let nibble = &self.slice[self.index..self.index + 4];
-                    let Ok(nibble) = u16::from_str_radix(nibble, 16) else {
+                    let hex_str = &self.slice[self.index..self.index + 4];
+                    let Ok(unicode) = u16::from_str_radix(hex_str, 16) else {
                         return Err(Error::InvalidUnicode);
                     };
                     self.index += 4;
-                    seq.push(nibble);
+                    seq.push(unicode);
                 },
             }
         }
