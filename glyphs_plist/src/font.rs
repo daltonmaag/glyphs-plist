@@ -383,6 +383,8 @@ pub struct FontMaster {
     pub visible: bool,
     #[plist(default)]
     pub user_data: HashMap<String, Plist>,
+    #[plist(default)]
+    pub custom_parameters: Vec<Plist>,
     #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
 }
@@ -686,6 +688,7 @@ impl FontMaster {
             axes_values: Default::default(),
             visible: true,
             user_data: Default::default(),
+            custom_parameters: Default::default(),
             other_stuff: Default::default(),
         }
     }
@@ -699,6 +702,20 @@ impl FontMaster {
         font: &'a Font,
     ) -> impl Iterator<Item = (&'a Metric, &'a MasterMetric)> {
         font.metrics.iter().zip(self.metric_values.iter())
+    }
+
+    pub fn iter_custom_parameters(
+        &self,
+    ) -> impl Iterator<Item = (&str, &Plist)> {
+        self.custom_parameters.iter().filter_map(|cp| {
+            if let Some(d) = cp.as_dict() {
+                let name = d.get("name")?.as_str()?;
+                let value = d.get("value")?;
+                Some((name, value))
+            } else {
+                None
+            }
+        })
     }
 }
 
@@ -1542,6 +1559,13 @@ mod tests {
 
         assert!(!font.other_stuff.contains_key(".appVersion"));
         assert!(!font.other_stuff.contains_key(".formatVersion"));
+
+        assert_eq!(
+            font.font_master[0]
+                .iter_custom_parameters()
+                .collect::<Vec<_>>(),
+            vec![("Default Layer Width", &Plist::String("600".into()))]
+        );
     }
 
     #[test]
