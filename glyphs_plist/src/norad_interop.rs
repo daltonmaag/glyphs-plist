@@ -22,6 +22,7 @@ impl From<&norad::Contour> for Path {
         Self {
             attr: None,
             closed: contour.is_closed(),
+            locked: false,
             nodes,
         }
     }
@@ -132,6 +133,7 @@ impl From<&norad::Component> for Component {
             slant,
             alignment: None,
             anchor: None,
+            locked: false,
             user_data: Default::default(),
             other_stuff: Default::default(),
         }
@@ -241,6 +243,7 @@ impl From<&norad::Anchor> for Anchor {
             name: anchor.name.as_ref().unwrap().as_str().to_string(),
             orientation: None,
             pos: kurbo::Point::new(anchor.x, anchor.y),
+            locked: false,
             user_data: Default::default(),
         }
     }
