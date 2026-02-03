@@ -248,6 +248,8 @@ pub struct Path {
     pub attr: Option<PathAttrs>,
     #[plist(always_serialise, default = true)]
     pub closed: bool,
+    #[plist(default)]
+    pub locked: bool,
     pub nodes: Vec<Node>,
 }
 
@@ -321,6 +323,8 @@ pub struct Component {
     pub alignment: Option<i64>,
     pub anchor: Option<String>,
     #[plist(default)]
+    pub locked: bool,
+    #[plist(default)]
     pub user_data: HashMap<String, Plist>,
     #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
@@ -339,6 +343,8 @@ pub struct Anchor {
     pub orientation: Option<AnchorOrientation>,
     #[plist(default)]
     pub pos: Point,
+    #[plist(default)]
+    pub locked: bool,
     #[plist(default)]
     pub user_data: HashMap<String, Plist>,
 }
@@ -1343,6 +1349,7 @@ impl Path {
         Path {
             attr: None,
             nodes: Vec::new(),
+            locked: false,
             closed,
         }
     }
@@ -1524,7 +1531,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::{collections::HashSet, ops::Not};
 
     use super::*;
 
@@ -1716,5 +1723,73 @@ mod tests {
                 horizontal: false,
             }
         ]);
+    }
+
+    #[test]
+    fn supports_unlocked() {
+        let path = r#" {
+            nodes = ();
+        } "#;
+        let component = r#" {
+            ref = A;
+        } "#;
+        let anchor = r#" {
+            name = A;
+        } "#;
+
+        assert!(
+            Path::try_from(Plist::parse(path).expect("parse plist"))
+                .expect("deserialises path")
+                .locked
+                .not()
+        );
+
+        assert!(
+            Component::try_from(Plist::parse(component).expect("parse plist"))
+                .expect("deserialises component")
+                .locked
+                .not()
+        );
+
+        assert!(
+            Anchor::try_from(Plist::parse(anchor).expect("parse plist"))
+                .expect("deserialises anchor")
+                .locked
+                .not()
+        );
+    }
+
+    #[test]
+    fn supports_locked() {
+        let path = r#" {
+            locked = 1;
+            nodes = ();
+        } "#;
+        let component = r#" {
+            locked = 1;
+            ref = A;
+        } "#;
+        let anchor = r#" {
+            locked = 1;
+            name = A;
+        } "#;
+
+        assert!(
+            Path::try_from(Plist::parse(path).expect("parse plist"))
+                .expect("deserialises path")
+                .locked
+        );
+
+        assert!(
+            Component::try_from(Plist::parse(component).expect("parse plist"))
+                .expect("deserialises component")
+                .locked
+        );
+
+        assert!(
+            Anchor::try_from(Plist::parse(anchor).expect("parse plist"))
+                .expect("deserialises anchor")
+                .locked
+        );
     }
 }
