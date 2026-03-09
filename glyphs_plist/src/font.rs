@@ -62,8 +62,7 @@ pub struct Font {
 pub struct Axis {
     #[plist(always_serialise)]
     pub name: String,
-    #[plist(always_serialise)]
-    pub tag: String,
+    pub tag: Option<String>,
     #[plist(default)]
     pub hidden: bool,
     #[plist(default)]
@@ -1791,5 +1790,20 @@ mod tests {
                 .expect("deserialises anchor")
                 .locked
         );
+    }
+    #[test]
+    fn loads_axis_without_tag() {
+        const TEST_DATA: &str = r#"{
+          name = Contrast;
+        }"#;
+
+        let axis = Axis::try_from(Plist::parse(TEST_DATA).unwrap())
+            .expect("deserialises axis");
+        assert_eq!(axis, Axis {
+            name: String::from("Contrast"),
+            tag: None,
+            hidden: false,
+            default: 0f64,
+        });
     }
 }
