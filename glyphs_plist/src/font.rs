@@ -340,6 +340,16 @@ pub struct Scale {
     pub vertical: f64,
 }
 
+impl Default for Scale {
+    fn default() -> Self {
+        // Equivalent to no scaling.
+        Self {
+            horizontal: 1.,
+            vertical: 1.,
+        }
+    }
+}
+
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Anchor {
     #[plist(always_serialise)]
@@ -428,7 +438,7 @@ pub struct Hint {
     // Used for corners.
     pub name: Option<String>,
     pub origin: Option<IndexPath>,
-    #[plist(default = Scale { horizontal: 1., vertical: 1. })]
+    #[plist(default)]
     pub scale: Scale,
     #[plist(always_serialise)]
     pub r#type: HintType,
