@@ -12,6 +12,9 @@ pub use font::{
     LayerAttr, MasterMetric, Metric, MetricType, Node, NodeType, Path,
     Settings, Shape,
 };
-pub use from_plist::FromPlist;
+pub use from_plist::{
+    ArrayConversionError, BoolConversionError, DownsizeToU16Error, FromPlist,
+    VariantError,
+};
 pub use plist::Plist;
 pub use to_plist::ToPlist;
