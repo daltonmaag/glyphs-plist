@@ -498,6 +498,12 @@ impl From<u8> for Plist {
     }
 }
 
+impl From<u32> for Plist {
+    fn from(x: u32) -> Plist {
+        Plist::Integer(x as i64)
+    }
+}
+
 impl From<i32> for Plist {
     fn from(x: i32) -> Plist {
         Plist::Integer(x as i64)

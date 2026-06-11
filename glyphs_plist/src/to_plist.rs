@@ -40,6 +40,12 @@ impl ToPlist for u16 {
     }
 }
 
+impl ToPlist for u32 {
+    fn to_plist(self) -> Plist {
+        self.into()
+    }
+}
+
 impl ToPlist for i64 {
     fn to_plist(self) -> Plist {
         self.into()

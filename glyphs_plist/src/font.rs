@@ -4,7 +4,9 @@
 //! There are lots of other ways this could go, including something serde-like
 //! where it gets serialized to more Rust-native structures, proc macros, etc.
 
-use std::{collections::HashMap, convert::Infallible, fs, io};
+use std::{
+    collections::HashMap, convert::Infallible, fs, io, num::TryFromIntError,
+};
 
 use kurbo::Point;
 use thiserror::Error;
@@ -15,6 +17,7 @@ use crate::{
         FromPlist, VariantError,
     },
     plist::Plist,
+    plist_array,
     to_plist::ToPlist,
 };
 
@@ -189,6 +192,8 @@ pub struct Layer {
     pub shapes: Vec<Shape>,
     pub anchors: Option<Vec<Anchor>>,
     pub guides: Option<Vec<GuideLine>>,
+    #[plist(default)]
+    pub hints: Vec<Hint>,
     pub metric_top: Option<String>,
     pub metric_bottom: Option<String>,
     pub metric_left: Option<String>,
@@ -369,6 +374,68 @@ pub struct GuideLine {
     pub show_measurement: bool,
     pub orientation: Option<AnchorOrientation>,
     pub filter: Option<String>,
+    #[plist(default)]
+    pub user_data: HashMap<String, Plist>,
+}
+
+/// https://github.com/schriftgestalt/GlyphsSDK/blob/Glyphs3/GlyphsFileFormat/GlyphsFileFormatv3.md#spec-glyphs-3-hint
+#[derive(Clone, Debug, PartialEq)]
+pub enum HintType {
+    TopGhost,
+    BottomGhost,
+    Stem,
+    Flex,
+    TTStem,
+    TTShift,
+    TTSnap,
+    TTInterpolate,
+    TTDiagonal,
+    TTDelta,
+    Tag,
+    Corner,
+    Cap,
+    Brush,
+    Segment,
+    Auto,
+    Unknown,
+}
+
+/// https://github.com/schriftgestalt/GlyphsSDK/blob/Glyphs3/GlyphsFileFormat/GlyphsFileFormatv3.md#spec-glyphs-3-indexPath
+#[derive(Clone, Debug, PartialEq)]
+pub enum IndexPath {
+    Node {
+        shape: u32,
+        node: u32,
+    },
+    Inflection {
+        shape: u32,
+        node: u32,
+        inflection: u32,
+    },
+    Intersection {
+        shape1: u32,
+        node1: u32,
+        shape2: u32,
+        node2: u32,
+    },
+    LeftSideBearing,
+    RightSideBearing,
+}
+
+/// https://github.com/schriftgestalt/GlyphsSDK/blob/Glyphs3/GlyphsFileFormat/GlyphsFileFormatv3.md#spec-glyphs-3-hint
+#[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
+pub struct Hint {
+    // Used for corners.
+    #[plist(always_serialise)]
+    pub name: String,
+    #[plist(always_serialise)]
+    pub origin: IndexPath,
+    #[plist(default = Scale { horizontal: 1., vertical: 1. })]
+    pub scale: Scale,
+    #[plist(always_serialise)]
+    pub r#type: HintType,
+
+    // Not used for corners - yet.
     #[plist(default)]
     pub user_data: HashMap<String, Plist>,
 }
@@ -605,6 +672,7 @@ impl Layer {
             shapes: Default::default(),
             anchors: Default::default(),
             guides: Default::default(),
+            hints: Default::default(),
             metric_top: Default::default(),
             metric_bottom: Default::default(),
             metric_left: Default::default(),
@@ -1511,6 +1579,166 @@ pub enum GlyphsFromPlistError {
     Kerning(#[from] KerningConversionError),
     #[error("bad codepoint(s): {0}")]
     Codepoints(#[from] CodepointsConversionError),
+    #[error("bad hint or corner component: {0}")]
+    Hint(#[from] HintConversionError),
+}
+
+impl From<HintTypeConversionError> for GlyphsFromPlistError {
+    fn from(error: HintTypeConversionError) -> Self {
+        GlyphsFromPlistError::Hint(error.into())
+    }
+}
+
+impl From<IndexPathConversionError> for GlyphsFromPlistError {
+    fn from(error: IndexPathConversionError) -> Self {
+        GlyphsFromPlistError::Hint(error.into())
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum HintConversionError {
+    #[error("bad index path: {0}")]
+    IndexPath(#[from] IndexPathConversionError),
+    #[error("bad type: {0}")]
+    Type(#[from] HintTypeConversionError),
+}
+
+#[derive(Debug, Error)]
+pub enum IndexPathConversionError {
+    #[error(
+        "index paths for corner components must be 'lsb', 'rsb', or a tuple \
+         of indices"
+    )]
+    WrongType,
+    #[error("index path had an index that was out of range for a u32")]
+    OutOfRange(#[from] TryFromIntError),
+}
+
+impl ToPlist for IndexPath {
+    fn to_plist(self) -> Plist {
+        match self {
+            IndexPath::Node { shape, node } => plist_array![shape, node],
+            IndexPath::Inflection {
+                shape,
+                node,
+                inflection,
+            } => plist_array![shape, node, inflection],
+            IndexPath::Intersection {
+                shape1,
+                node1,
+                shape2,
+                node2,
+            } => plist_array![shape1, node1, shape2, node2],
+            IndexPath::LeftSideBearing => Plist::String("lsb".into()),
+            IndexPath::RightSideBearing => Plist::String("rsb".into()),
+        }
+    }
+}
+
+impl TryFrom<Plist> for IndexPath {
+    type Error = IndexPathConversionError;
+
+    fn try_from(value: Plist) -> Result<Self, Self::Error> {
+        match value {
+            Plist::Array(array) => match *array.as_slice() {
+                [Plist::Integer(shape), Plist::Integer(node)] => {
+                    Ok(IndexPath::Node {
+                        shape: shape.try_into()?,
+                        node: node.try_into()?,
+                    })
+                },
+                [
+                    Plist::Integer(shape),
+                    Plist::Integer(node),
+                    Plist::Integer(inflection),
+                ] => Ok(IndexPath::Inflection {
+                    shape: shape.try_into()?,
+                    node: node.try_into()?,
+                    inflection: inflection.try_into()?,
+                }),
+                [
+                    Plist::Integer(shape1),
+                    Plist::Integer(node1),
+                    Plist::Integer(shape2),
+                    Plist::Integer(node2),
+                ] => Ok(IndexPath::Intersection {
+                    shape1: shape1.try_into()?,
+                    node1: node1.try_into()?,
+                    shape2: shape2.try_into()?,
+                    node2: node2.try_into()?,
+                }),
+                _ => Err(IndexPathConversionError::WrongType),
+            },
+            Plist::String(string) => match string.as_str() {
+                "lsb" => Ok(IndexPath::LeftSideBearing),
+                "rsb" => Ok(IndexPath::RightSideBearing),
+                _ => Err(IndexPathConversionError::WrongType),
+            },
+            _ => Err(IndexPathConversionError::WrongType),
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum HintTypeConversionError {
+    #[error("can't convert non-string plist value to hint type")]
+    WrongVariant,
+    #[error("unknown hint type '{0}'")]
+    UnknownOrientation(String),
+}
+
+impl TryFrom<Plist> for HintType {
+    type Error = HintTypeConversionError;
+
+    fn try_from(plist: Plist) -> Result<Self, Self::Error> {
+        match plist {
+            Plist::String(s) => match s.as_str() {
+                "TopGhost" => Ok(HintType::TopGhost),
+                "BottomGhost" => Ok(HintType::BottomGhost),
+                "Stem" => Ok(HintType::Stem),
+                "Flex" => Ok(HintType::Flex),
+                "TTStem" => Ok(HintType::TTStem),
+                "TTShift" => Ok(HintType::TTShift),
+                "TTSnap" => Ok(HintType::TTSnap),
+                "TTInterpolate" => Ok(HintType::TTInterpolate),
+                "TTDiagonal" => Ok(HintType::TTDiagonal),
+                "TTDelta" => Ok(HintType::TTDelta),
+                "Tag" => Ok(HintType::Tag),
+                "Corner" => Ok(HintType::Corner),
+                "Cap" => Ok(HintType::Cap),
+                "Brush" => Ok(HintType::Brush),
+                "Segment" => Ok(HintType::Segment),
+                "Auto" => Ok(HintType::Auto),
+                "Unknown" => Ok(HintType::Unknown),
+                _ => Err(HintTypeConversionError::UnknownOrientation(s)),
+            },
+            _ => Err(HintTypeConversionError::WrongVariant),
+        }
+    }
+}
+
+impl ToPlist for HintType {
+    fn to_plist(self) -> Plist {
+        match self {
+            HintType::TopGhost => Plist::String("TopGhost".into()),
+            HintType::BottomGhost => Plist::String("BottomGhost".into()),
+            HintType::Stem => Plist::String("Stem".into()),
+            HintType::Flex => Plist::String("Flex".into()),
+            HintType::TTStem => Plist::String("TTStem".into()),
+            HintType::TTShift => Plist::String("TTShift".into()),
+            HintType::TTSnap => Plist::String("TTSnap".into()),
+            HintType::TTInterpolate => Plist::String("TTInterpolate".into()),
+            HintType::TTDiagonal => Plist::String("TTDiagonal".into()),
+            HintType::TTDelta => Plist::String("TTDelta".into()),
+            HintType::Tag => Plist::String("Tag".into()),
+            HintType::Corner => Plist::String("Corner".into()),
+            HintType::Cap => Plist::String("Cap".into()),
+            HintType::Brush => Plist::String("Brush".into()),
+            HintType::Segment => Plist::String("Segment".into()),
+            HintType::Auto => Plist::String("Auto".into()),
+            HintType::Unknown => Plist::String("Unknown".into()),
+        }
+    }
 }
 
 impl From<Infallible> for GlyphsFromPlistError {
