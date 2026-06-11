@@ -2032,4 +2032,28 @@ mod tests {
             default: 0f64,
         });
     }
+
+    #[test]
+    fn loads_corner_hint() {
+        const TEST_DATA: &str = r#"
+        {
+            name = _corner.rightSerif;
+            origin = (0, 2);
+            type = Corner;
+        }"#;
+
+        let Hint {
+            name,
+            origin,
+            scale: _,
+            r#type,
+            other_stuff,
+        } = Hint::try_from(Plist::parse(TEST_DATA).unwrap())
+            .expect("deserialises Hint");
+
+        assert_eq!(name.as_deref(), Some("_corner.rightSerif"));
+        assert_eq!(origin, Some(IndexPath::Node { shape: 0, node: 2 }));
+        assert_eq!(r#type, HintType::Corner);
+        assert!(other_stuff.is_empty());
+    }
 }
