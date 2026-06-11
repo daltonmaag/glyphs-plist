@@ -6,12 +6,7 @@ mod norad_interop;
 mod plist;
 mod to_plist;
 
-pub use font::{
-    Anchor, Axis, BackgroundLayer, Component, Font, FontLoadError, FontMaster,
-    FontNumbers, FontStems, Glyph, GlyphsFromPlistError, Instance, Layer,
-    LayerAttr, MasterMetric, Metric, MetricType, Node, NodeType, Path,
-    Settings, Shape,
-};
+pub use font::*;
 pub use from_plist::{
     ArrayConversionError, BoolConversionError, DownsizeToU16Error, FromPlist,
     VariantError,
