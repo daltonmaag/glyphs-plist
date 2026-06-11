@@ -17,7 +17,7 @@ use crate::{
         FromPlist, VariantError,
     },
     plist::Plist,
-    plist_array,
+    plist_array, plist_string,
     to_plist::ToPlist,
 };
 
@@ -888,8 +888,8 @@ impl TryFrom<Plist> for AnchorOrientation {
 impl ToPlist for AnchorOrientation {
     fn to_plist(self) -> Plist {
         match self {
-            AnchorOrientation::Center => Plist::String("center".into()),
-            AnchorOrientation::Right => Plist::String("right".into()),
+            AnchorOrientation::Center => plist_string!("center"),
+            AnchorOrientation::Right => plist_string!("right"),
         }
     }
 }
@@ -1652,8 +1652,8 @@ impl ToPlist for IndexPath {
                 shape2,
                 node2,
             } => plist_array![shape1, node1, shape2, node2],
-            IndexPath::LeftSideBearing => Plist::String("lsb".into()),
-            IndexPath::RightSideBearing => Plist::String("rsb".into()),
+            IndexPath::LeftSideBearing => plist_string!("lsb"),
+            IndexPath::RightSideBearing => plist_string!("rsb"),
         }
     }
 }
@@ -1743,23 +1743,23 @@ impl TryFrom<Plist> for HintType {
 impl ToPlist for HintType {
     fn to_plist(self) -> Plist {
         match self {
-            HintType::TopGhost => Plist::String("TopGhost".into()),
-            HintType::BottomGhost => Plist::String("BottomGhost".into()),
-            HintType::Stem => Plist::String("Stem".into()),
-            HintType::Flex => Plist::String("Flex".into()),
-            HintType::TTStem => Plist::String("TTStem".into()),
-            HintType::TTShift => Plist::String("TTShift".into()),
-            HintType::TTSnap => Plist::String("TTSnap".into()),
-            HintType::TTInterpolate => Plist::String("TTInterpolate".into()),
-            HintType::TTDiagonal => Plist::String("TTDiagonal".into()),
-            HintType::TTDelta => Plist::String("TTDelta".into()),
-            HintType::Tag => Plist::String("Tag".into()),
-            HintType::Corner => Plist::String("Corner".into()),
-            HintType::Cap => Plist::String("Cap".into()),
-            HintType::Brush => Plist::String("Brush".into()),
-            HintType::Segment => Plist::String("Segment".into()),
-            HintType::Auto => Plist::String("Auto".into()),
-            HintType::Unknown => Plist::String("Unknown".into()),
+            HintType::TopGhost => plist_string!("TopGhost"),
+            HintType::BottomGhost => plist_string!("BottomGhost"),
+            HintType::Stem => plist_string!("Stem"),
+            HintType::Flex => plist_string!("Flex"),
+            HintType::TTStem => plist_string!("TTStem"),
+            HintType::TTShift => plist_string!("TTShift"),
+            HintType::TTSnap => plist_string!("TTSnap"),
+            HintType::TTInterpolate => plist_string!("TTInterpolate"),
+            HintType::TTDiagonal => plist_string!("TTDiagonal"),
+            HintType::TTDelta => plist_string!("TTDelta"),
+            HintType::Tag => plist_string!("Tag"),
+            HintType::Corner => plist_string!("Corner"),
+            HintType::Cap => plist_string!("Cap"),
+            HintType::Brush => plist_string!("Brush"),
+            HintType::Segment => plist_string!("Segment"),
+            HintType::Auto => plist_string!("Auto"),
+            HintType::Unknown => plist_string!("Unknown"),
         }
     }
 }
@@ -1821,7 +1821,7 @@ mod tests {
             font.font_master[0]
                 .iter_custom_parameters()
                 .collect::<Vec<_>>(),
-            vec![("Default Layer Width", &Plist::String("600".into()))]
+            vec![("Default Layer Width", &plist_string!("600"))]
         );
     }
 
@@ -1880,8 +1880,8 @@ mod tests {
         }
 
         let with_unexpected = Plist::Dictionary(HashMap::from([
-            ("foo".to_owned(), Plist::String("abc".to_owned())),
-            ("bar".to_owned(), Plist::String("def".to_owned())),
+            ("foo".to_owned(), plist_string!("abc")),
+            ("bar".to_owned(), plist_string!("def")),
         ]));
 
         let err = TryInto::<FooBar>::try_into(with_unexpected)
