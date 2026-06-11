@@ -426,10 +426,8 @@ pub enum IndexPath {
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
 pub struct Hint {
     // Used for corners.
-    #[plist(always_serialise)]
-    pub name: String,
-    #[plist(always_serialise)]
-    pub origin: IndexPath,
+    pub name: Option<String>,
+    pub origin: Option<IndexPath>,
     #[plist(default = Scale { horizontal: 1., vertical: 1. })]
     pub scale: Scale,
     #[plist(always_serialise)]
