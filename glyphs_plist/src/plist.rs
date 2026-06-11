@@ -619,6 +619,23 @@ macro_rules! plist_array {
     ($value:expr; $n:expr) => ($crate::Plist::Array(::std::vec![$crate::Plist::from($value); $n]));
 }
 
+/// Create a [`Plist::String`] from a value, or a format string.
+///
+/// ## Example
+///
+/// ```
+/// # use std::path::Path;
+/// # use glyphs_plist::{plist_string, Plist};
+/// let simple = plist_string!("fizzbuzz");
+/// let formatted = plist_string!("{:?}", Path::new("test.txt"));
+/// ```
+#[macro_export]
+macro_rules! plist_string {
+    ($($arg:tt)*) => {
+        $crate::Plist::String(::std::format!($($arg)*))
+    };
+}
+
 #[cfg(test)]
 mod macro_tests {
     use crate::Plist;
