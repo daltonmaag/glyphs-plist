@@ -434,8 +434,8 @@ pub struct Hint {
     pub r#type: HintType,
 
     // Not used for corners - yet.
-    #[plist(default)]
-    pub user_data: HashMap<String, Plist>,
+    #[plist(rest)]
+    pub other_stuff: HashMap<String, Plist>,
 }
 
 #[derive(Clone, Debug, FromPlist, ToPlist, PartialEq)]
