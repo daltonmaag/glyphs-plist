@@ -334,7 +334,7 @@ pub struct Component {
     pub other_stuff: HashMap<String, Plist>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Scale {
     pub horizontal: f64,
     pub vertical: f64,
@@ -379,7 +379,7 @@ pub struct GuideLine {
 }
 
 /// https://github.com/schriftgestalt/GlyphsSDK/blob/Glyphs3/GlyphsFileFormat/GlyphsFileFormatv3.md#spec-glyphs-3-hint
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HintType {
     TopGhost,
     BottomGhost,
@@ -401,7 +401,7 @@ pub enum HintType {
 }
 
 /// https://github.com/schriftgestalt/GlyphsSDK/blob/Glyphs3/GlyphsFileFormat/GlyphsFileFormatv3.md#spec-glyphs-3-indexPath
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IndexPath {
     Node {
         shape: u32,
