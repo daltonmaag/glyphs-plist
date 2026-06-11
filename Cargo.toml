@@ -4,3 +4,15 @@ members = [
     "glyphs_plist",
     "glyphs_plist_derive",
 ]
+
+[workspace.lints.rust]
+# missing_docs = "warn"
+unsafe_op_in_unsafe_fn = "forbid"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "forbid"
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "warn"
+must_use_candidate = "warn"
+missing_const_for_fn = "warn"

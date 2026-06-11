@@ -51,11 +51,11 @@ struct UnicodeEscapeLexer<'a> {
     index: usize,
 }
 
-fn is_numeric(b: u8) -> bool {
+const fn is_numeric(b: u8) -> bool {
     b.is_ascii_digit() || b == b'.' || b == b'-'
 }
 
-fn is_alnum(b: u8) -> bool {
+const fn is_alnum(b: u8) -> bool {
     // https://github.com/opensource-apple/CF/blob/3cc41a76b1491f50813e28a4ec09954ffa359e6f/CFOldStylePList.c#L79
     is_numeric(b)
         || b.is_ascii_uppercase()
@@ -69,7 +69,7 @@ fn is_alnum(b: u8) -> bool {
 }
 
 // Used for serialization; make sure UUID's get quoted
-fn is_alnum_strict(b: u8) -> bool {
+const fn is_alnum_strict(b: u8) -> bool {
     is_alnum(b) && b != b'-'
 }
 
@@ -77,7 +77,7 @@ fn is_hex_upper(b: u8) -> bool {
     b.is_ascii_digit() || (b'A'..=b'F').contains(&b)
 }
 
-fn is_ascii_whitespace(b: u8) -> bool {
+const fn is_ascii_whitespace(b: u8) -> bool {
     b == b' ' || b == b'\t' || b == b'\r' || b == b'\n'
 }
 
@@ -153,7 +153,8 @@ impl Plist {
     }
 
     #[allow(unused)]
-    pub fn as_dict(&self) -> Option<&HashMap<String, Plist>> {
+    #[must_use]
+    pub const fn as_dict(&self) -> Option<&HashMap<String, Plist>> {
         match self {
             Plist::Dictionary(d) => Some(d),
             _ => None,
@@ -161,6 +162,7 @@ impl Plist {
     }
 
     #[allow(unused)]
+    #[must_use]
     pub fn get(&self, key: &str) -> Option<&Plist> {
         match self {
             Plist::Dictionary(d) => d.get(key),
@@ -168,6 +170,7 @@ impl Plist {
         }
     }
 
+    #[must_use]
     pub fn as_array(&self) -> Option<&[Plist]> {
         match self {
             Plist::Array(a) => Some(a),
@@ -175,6 +178,7 @@ impl Plist {
         }
     }
 
+    #[must_use]
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Plist::String(s) => Some(s),
@@ -182,14 +186,16 @@ impl Plist {
         }
     }
 
-    pub fn as_i64(&self) -> Option<i64> {
+    #[must_use]
+    pub const fn as_i64(&self) -> Option<i64> {
         match self {
             Plist::Integer(i) => Some(*i),
             _ => None,
         }
     }
 
-    pub fn as_f64(&self) -> Option<f64> {
+    #[must_use]
+    pub const fn as_f64(&self) -> Option<f64> {
         match self {
             Plist::Integer(i) => Some(*i as f64),
             Plist::Float(f) => Some(*f),
@@ -197,6 +203,7 @@ impl Plist {
         }
     }
 
+    #[must_use]
     pub fn into_string(self) -> String {
         match self {
             Plist::String(s) => s,
@@ -204,6 +211,7 @@ impl Plist {
         }
     }
 
+    #[must_use]
     pub fn into_vec(self) -> Vec<Plist> {
         match self {
             Plist::Array(a) => a,
@@ -211,6 +219,7 @@ impl Plist {
         }
     }
 
+    #[must_use]
     pub fn into_hashmap(self) -> HashMap<String, Plist> {
         match self {
             Plist::Dictionary(d) => d,
@@ -456,7 +465,7 @@ impl<'a> UnicodeEscapeLexer<'a> {
         Self { slice, index: 0 }
     }
 
-    fn remaining(&self) -> usize {
+    const fn remaining(&self) -> usize {
         self.slice.len() - self.index
     }
 

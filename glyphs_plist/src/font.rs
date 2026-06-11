@@ -591,6 +591,7 @@ pub enum FontLoadError {
 
 impl Font {
     /// Return a new font like Glyphs.app would do it.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -615,6 +616,7 @@ impl Font {
         fs::write(path, plist.to_string().replace("\r\n", "\n"))
     }
 
+    #[must_use]
     pub fn get_glyph(&self, glyphname: &str) -> Option<&Glyph> {
         self.glyphs.iter().find(|g| g.glyphname == glyphname)
     }
@@ -658,6 +660,7 @@ impl Glyph {
         }
     }
 
+    #[must_use]
     pub fn get_layer(&self, layer_id: &str) -> Option<&Layer> {
         self.layers.iter().find(|l| l.layer_id == layer_id)
     }
@@ -693,10 +696,12 @@ impl Layer {
         }
     }
 
-    pub fn is_master_layer(&self) -> bool {
+    #[must_use]
+    pub const fn is_master_layer(&self) -> bool {
         self.associated_master_id.is_none()
     }
 
+    #[must_use]
     pub fn is_intermediate_layer(&self) -> bool {
         self.attr
             .as_ref()
@@ -704,6 +709,7 @@ impl Layer {
             .unwrap_or(false)
     }
 
+    #[must_use]
     pub fn is_alternate_layer(&self) -> bool {
         self.attr
             .as_ref()
@@ -711,6 +717,7 @@ impl Layer {
             .unwrap_or(false)
     }
 
+    #[must_use]
     pub fn is_color_layer(&self) -> bool {
         self.attr
             .as_ref()
@@ -718,6 +725,7 @@ impl Layer {
             .unwrap_or(false)
     }
 
+    #[must_use]
     pub fn is_color_palette_layer(&self) -> bool {
         self.attr
             .as_ref()
@@ -725,6 +733,7 @@ impl Layer {
             .unwrap_or(false)
     }
 
+    #[must_use]
     pub fn is_svg_layer(&self) -> bool {
         self.attr
             .as_ref()
@@ -732,6 +741,7 @@ impl Layer {
             .unwrap_or(false)
     }
 
+    #[must_use]
     pub fn is_icolor_layer(&self) -> bool {
         self.attr
             .as_ref()
@@ -739,6 +749,7 @@ impl Layer {
             .unwrap_or(false)
     }
 
+    #[must_use]
     pub fn coordinates(&self) -> Option<&[f64]> {
         self.attr.as_ref().and_then(|a| a.coordinates.as_deref())
     }
@@ -801,6 +812,7 @@ impl FontMaster {
 }
 
 impl Settings {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -1286,7 +1298,7 @@ impl std::str::FromStr for NodeType {
 }
 
 impl NodeType {
-    fn glyphs_str(&self) -> &'static str {
+    const fn glyphs_str(&self) -> &'static str {
         match self {
             NodeType::Line => "l",
             NodeType::LineSmooth => "ls",
@@ -1420,7 +1432,8 @@ impl ToPlist for Scale {
 }
 
 impl Path {
-    pub fn new(closed: bool) -> Path {
+    #[must_use]
+    pub const fn new(closed: bool) -> Path {
         Path {
             attr: None,
             nodes: Vec::new(),
@@ -1447,12 +1460,14 @@ impl Path {
     }
 
     #[inline]
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.nodes.len()
     }
 
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.len() == 0
     }
 }
@@ -1751,7 +1766,7 @@ impl ToPlist for HintType {
 
 impl From<Infallible> for GlyphsFromPlistError {
     fn from(_: Infallible) -> Self {
-        unsafe { std::hint::unreachable_unchecked() }
+        unreachable!()
     }
 }
 
