@@ -18,7 +18,7 @@ enum PlistAttribute {
 }
 
 impl PlistAttribute {
-    fn always_serialise(&self) -> bool {
+    const fn always_serialise(&self) -> bool {
         if let PlistAttribute::Standard(inner) = self {
             inner.always_serialise
         } else {
@@ -37,7 +37,7 @@ impl PlistAttribute {
         }
     }
 
-    fn take_serialised_name(&mut self) -> Option<String> {
+    const fn take_serialised_name(&mut self) -> Option<String> {
         if let PlistAttribute::Standard(inner) = self {
             inner.serialised_name.take()
         } else {
@@ -116,7 +116,7 @@ struct PlistAttributeInner {
 }
 
 impl PlistAttributeInner {
-    fn unused(&self) -> bool {
+    const fn unused(&self) -> bool {
         matches!(self, PlistAttributeInner {
             serialised_name: None,
             default: PlistAttributeDefault::None,
