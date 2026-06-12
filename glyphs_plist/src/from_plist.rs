@@ -3,7 +3,7 @@ use std::collections::HashMap;
 pub use glyphs_plist_derive::FromPlist;
 use thiserror::Error;
 
-use crate::plist::Plist;
+use crate::{GlyphsFromPlistError, plist::Plist};
 
 impl From<Plist> for String {
     fn from(plist: Plist) -> Self {
@@ -110,27 +110,29 @@ impl From<Plist> for HashMap<String, Plist> {
 }
 
 #[derive(Debug, Error)]
-pub enum ArrayConversionError<E: std::error::Error> {
+pub enum ArrayConversionError {
     #[error("expected array")]
     WrongVariant,
     #[error(transparent)]
-    Element(#[from] E),
+    Element(Box<GlyphsFromPlistError>),
 }
 
 impl<T> TryFrom<Plist> for Vec<T>
 where
     T: TryFrom<Plist>,
-    T::Error: std::error::Error,
+    T::Error: Into<GlyphsFromPlistError>,
 {
-    type Error = ArrayConversionError<T::Error>;
+    type Error = ArrayConversionError;
 
     fn try_from(plist: Plist) -> Result<Self, Self::Error> {
         match plist {
             Plist::Array(array) => array
                 .into_iter()
                 .map(TryFrom::try_from)
-                .collect::<Result<_, _>>()
-                .map_err(ArrayConversionError::Element),
+                .collect::<Result<_, T::Error>>()
+                .map_err(|err| {
+                    ArrayConversionError::Element(Box::new(err.into()))
+                }),
             _ => Err(ArrayConversionError::WrongVariant),
         }
     }
