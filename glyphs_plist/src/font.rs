@@ -236,6 +236,8 @@ pub struct BackgroundLayer {
     pub anchors: Option<Vec<Anchor>>,
     #[plist(default)]
     pub shapes: Vec<Shape>,
+    #[plist(default)]
+    pub hints: Vec<Hint>,
 
     #[plist(rest)]
     pub other_stuff: HashMap<String, Plist>,
