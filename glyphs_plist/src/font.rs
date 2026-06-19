@@ -444,6 +444,9 @@ pub struct Hint {
     pub scale: Scale,
     #[plist(always_serialise)]
     pub r#type: HintType,
+    /// Alignment option for corner components
+    #[plist(always_serialise)]
+    pub options: i64,
 
     // Not used for corners - yet.
     #[plist(rest)]
@@ -2065,6 +2068,7 @@ mod tests {
             origin,
             scale: _,
             r#type,
+            options: _,
             other_stuff,
         } = Hint::try_from(Plist::parse(TEST_DATA).unwrap())
             .expect("deserialises Hint");
