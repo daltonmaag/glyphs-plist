@@ -788,6 +788,14 @@ impl Layer {
             _ => None,
         })
     }
+
+    #[must_use]
+    pub fn get_anchor(&self, name: &str) -> Option<&Anchor> {
+        self.anchors
+            .as_ref()?
+            .iter()
+            .find(|anchor| anchor.name == name)
+    }
 }
 
 impl Hint {
