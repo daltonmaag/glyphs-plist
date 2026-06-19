@@ -412,6 +412,20 @@ pub enum HintType {
     Unknown,
 }
 
+/// How to align a corner component to the attaching node
+// https://github.com/googlefonts/fontc/blob/d62ba0166eb9af8116be5f55673244ecdb012026/glyphs-reader/src/font.rs#L494-L506
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum HintAlignment {
+    // glyphs calls this 'left'
+    OutStroke,
+    // glyphs calls this 'right'
+    InStroke,
+    Middle,
+    Unused,
+    Unaligned,
+}
+
 /// https://github.com/schriftgestalt/GlyphsSDK/blob/Glyphs3/GlyphsFileFormat/GlyphsFileFormatv3.md#spec-glyphs-3-indexPath
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IndexPath {
@@ -771,6 +785,24 @@ impl Layer {
             Shape::Component(component) => Some(component.as_ref()),
             _ => None,
         })
+    }
+}
+
+impl Hint {
+    #[must_use]
+    pub fn alignment(&self) -> HintAlignment {
+        // https://github.com/googlefonts/fontc/blob/d62ba0166eb9af8116be5f55673244ecdb012026/glyphs-reader/src/font.rs#L423-L435
+        match self.options {
+            0 => HintAlignment::OutStroke,
+            1 => HintAlignment::InStroke,
+            2 => HintAlignment::Middle,
+            3 => HintAlignment::Unused,
+            4 => HintAlignment::Unaligned,
+            _ => panic!(
+                "unknown Hint.options value for alignment: {}",
+                self.options
+            ),
+        }
     }
 }
 
