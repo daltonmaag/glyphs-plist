@@ -414,10 +414,12 @@ pub enum HintType {
 
 /// How to align a corner component to the attaching node
 // https://github.com/googlefonts/fontc/blob/d62ba0166eb9af8116be5f55673244ecdb012026/glyphs-reader/src/font.rs#L494-L506
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[repr(i64)]
 #[non_exhaustive]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash)]
 pub enum HintAlignment {
     // glyphs calls this 'left'
+    #[default]
     OutStroke,
     // glyphs calls this 'right'
     InStroke,
@@ -459,7 +461,7 @@ pub struct Hint {
     #[plist(always_serialise)]
     pub r#type: HintType,
     /// Alignment option for corner components
-    #[plist(always_serialise)]
+    #[plist(default)]
     pub options: i64,
 
     // Not used for corners - yet.
